@@ -3,7 +3,7 @@
 
 For each question's entry file, follow file-level dependencies (an edge's source file to the file of its target class)
 for 1 to 3 hops and compare with the reference set. Also reports how much of the reference is in the graph at all, and
-a variant that drops annotation files whose retention is SOURCE (class-file tools such as jdeps cannot see those).
+a variant that keeps only what a class-file tool such as jdeps can report: it lists RUNTIME-retained annotations but not SOURCE- or CLASS-retained ones (checked on gson).
 
   python3 experiments/graph_ceiling.py --graph G.json --questions questions_flow.json --clones DIR --repo dagger
 """
@@ -65,7 +65,7 @@ def main() -> None:
             frontier = set().union(*(out.get(u, set()) for u in frontier)) - seen
             seen |= frontier
             reach[depth] = set(seen) - {entry}
-        visible = {f for f in ref if annotation_retention(root / f) != "SOURCE"}
+        visible = {f for f in ref if annotation_retention(root / f) in (None, "RUNTIME")}
 
         def ceiling(depth: int, target: set) -> float:
             return len(reach[depth] & target) / len(target) if target else 0.0
