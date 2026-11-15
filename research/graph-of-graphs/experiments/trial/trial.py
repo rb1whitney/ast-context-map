@@ -49,7 +49,7 @@ SUFFIX = (
 )
 TOOL_DOC = (
     "\n\nA prebuilt code graph of this repository is available. Query it with:\n  python3 {tool} --graph {graph} "
-    "<find-definition|find-usages|impact> <Name>\nUse it first; verify with search when unsure."
+    "<find-definition|find-usages|impact> <Name>\nRun exactly one command per call (no cd, shell variables, pipes or loops: compound commands are blocked). Use it first; verify with search when unsure."
 )
 
 
@@ -81,7 +81,7 @@ FLOW_PROMPT = (
 FLOW_DOC = (
     "\n\nA prebuilt code graph of this repository is available. Rank the files related to a task with:\n  python3 {auto} "
     "\"<describe the task, naming the class>\" --graph {graph} --top 40 --json\nOther queries: python3 {tool} --graph {graph} "
-    "<find-definition|find-usages|impact|trace-dependencies> <Name>\nUse it first; verify with search when unsure."
+    "<find-definition|find-usages|impact|trace-dependencies> <Name>\nRun exactly one command per call (no cd, shell variables, pipes or loops: compound commands are blocked). Use it first; verify with search when unsure."
 )
 
 
@@ -225,7 +225,7 @@ def score(args) -> None:
         allrows.append((cond, repo, q, _rep))
         rows[(cond, repo)].append({
             "cost": d.get("total_cost_usd") or 0, "turns": d.get("num_turns") or 0, "sec": (d.get("duration_ms") or 0) / 1000,
-            "in": tokens_in, "out": u.get("output_tokens", 0), "p": p, "r": r, "f1": f1, "err": bool(d.get("is_error")),
+            "in": tokens_in, "out": u.get("output_tokens", 0), "p": p, "r": r, "f1": f1, "err": bool(d.get("is_error")), "den": bool(d.get("permission_denials")),
         })
     if args.csv:
         cols = ["cost", "turns", "sec", "in", "out", "p", "r", "f1", "err"]
@@ -234,11 +234,11 @@ def score(args) -> None:
         for (cond, repo, q, rep), x in zip(sorted(allrows, key=lambda t: (t[0], t[1])), flat):
             lines.append(",".join([cond, repo, q, rep.lstrip("r")] + [f"{x[c]:.4g}" if isinstance(x[c], float) else str(x[c]) for c in cols]))
         Path(args.csv).write_text("\n".join(lines) + "\n")
-    print(f"{'cond':4} {'repo':6} {'n':>2} {'err':>3} {'cost$ med':>9} {'turns':>6} {'in-tok med':>11} {'out-tok':>8} {'prec':>5} {'rec':>5} {'F1 med (min-max)':>18}")
+    print(f"{'cond':4} {'repo':6} {'n':>2} {'err':>3} {'den':>3} {'cost$ med':>9} {'turns':>6} {'in-tok med':>11} {'out-tok':>8} {'prec':>5} {'rec':>5} {'F1 med (min-max)':>18}")
     for (cond, repo), rs in sorted(rows.items()):
         med = lambda k: statistics.median(x[k] for x in rs)
         f1s = [x["f1"] for x in rs]
-        print(f"{cond:4} {repo:6} {len(rs):>2} {sum(x['err'] for x in rs):>3} {med('cost'):>9.3f} {med('turns'):>6.0f} {med('in'):>11.0f} "
+        print(f"{cond:4} {repo:6} {len(rs):>2} {sum(x['err'] for x in rs):>3} {sum(x['den'] for x in rs):>3} {med('cost'):>9.3f} {med('turns'):>6.0f} {med('in'):>11.0f} "
               f"{med('out'):>8.0f} {med('p'):>5.2f} {med('r'):>5.2f} {statistics.median(f1s):>7.2f} ({min(f1s):.2f}-{max(f1s):.2f})")
 
 

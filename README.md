@@ -103,7 +103,7 @@ Experiments on real repositories, with the caveats written down: [research/graph
 - Merging per-repo graphs is concatenation: 0 direct cross-repo edges, and the bridges are mostly standard-library names.
 - Real dependency edges can be extracted from package manifests, but they are sparse (7 among 20 repositories).
 - A budgeted graph answer is far smaller than reading files, but its coverage is incomplete.
-- In measured trials with real model runs (54 runs, about $0.41 in total), plain search beat the graph tools on "who uses X" questions and found more of the right files on two-step flow questions in a larger repository. The graph condition was sometimes cheaper. These are small, single-model trials.
+- In measured trials with real model runs (54 runs, about $0.41), plain search was cheaper and about as accurate as graph tools on "who uses X" questions in two small repositories. A trial on two-step flow questions in a larger repository is inconclusive: every graph-condition run had a denied tool call. These are small, single-model trials.
 
 ## Safety rules
 

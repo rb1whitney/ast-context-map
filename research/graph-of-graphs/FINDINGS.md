@@ -137,6 +137,7 @@ Reading:
 - The ranges overlap, the sample is small, and the cost difference is under a cent per run, so this is a direction, not a significance test.
 - Cause, from inspecting the tool rather than the runs: `find-usages JsonElement` prints 209 lines (14 KB) with no cap, and the agent has to convert class names to files. The test measured the tool as shipped, not graphs in general.
 - The question names the symbol, which is the case search handles best. Multi-hop, no-keyword and large-repo questions were not tested here.
+- Validity check on tool denials (added after the fact): 4 of the 18 graph-condition runs had at least one denied tool call, because the agent sometimes wrote a compound shell command that the allow-rule did not match. The 14 graph runs with no denial give the same picture (cost $0.006, 5 turns, recall 0.96, F1 median 0.92, against $0.004, 2 turns and F1 0.99 for search), so this finding does not depend on the denied runs. Whether the agents used the graph tool successfully in the other runs was not logged.
 - One scoring note: an agent once answered with an extra leading repo folder (`yapf/yapf/pytree/...`). The scorer now accepts a repo-name prefix for both conditions, since the files were right.
 
 ## Finding 8: measured agent trial on multi-hop flow questions (dagger)
@@ -161,6 +162,7 @@ Reading:
 - The hypothesis that a graph wins where search has no obvious keyword is not supported by this tool. A likely cause, not tested here: `auto_context` returns a ranked list of 40 files by personalised PageRank, not the two-step closure the question asks for. B's precision was similar or higher and its recall lower, which fits an agent that stops after a partial list.
 - Plain search itself reached only 0.57 to 0.83 F1, and A's precision of 0.53 on the first question suggests the agent and the approximate reference disagree about what "takes part" means. These questions are hard and the reference is imperfect.
 - Three repeats per cell. Ranges overlap on two of the three questions, so read this as direction, not significance.
+- **Validity problem: this result is inconclusive.** All 9 graph-condition runs had at least one denied tool call (12 in total). The agents often wrote a compound shell command (`cd`, shell variables, a loop) that the allow-rule, which only matched commands starting with the script, refused. There are no clean graph runs to compare, so the lower recall cannot be separated from the agents being blocked from the tool. The conclusions above were drawn before this check and should be read as provisional. The harness now tells the agent to run one command per call and records denials per run; a rerun is needed.
 
 ## Related work
 
@@ -182,13 +184,12 @@ I read LogicLens and codebadger in full (text supplied by the author). The commu
 - Explicit dependency extraction from manifests finds real edges but needs per-ecosystem parsing and care with name collisions between ecosystems.
 - For structural questions on the sampled repos, a budgeted graph answer is several times smaller than reading files and tens of times smaller than reading whole files, at the cost of coverage.
 - With an uncapped, symbol-level tool, an agent using the graph spent more turns and tokens than plain search on "who uses X" questions, with equal or lower accuracy (Finding 7).
-- With a ranked-file tool on two-step flow questions in dagger, graph-assisted agents were about 20 percent cheaper on average but found fewer of the right files (recall 0.46 against 0.69; Finding 8).
 
 ## What not to claim
 
 - That the graph replaces search. Coverage plateaus near 0.4 on three of four repos, and in the trial plain search was cheaper on direct-usage questions.
 - That graphs lose in general. Findings 7 and 8 tested two tool shapes on two question types with one small model.
-- That graphs win on multi-hop questions. Finding 8 did not support that with the tool tested.
+- Anything about graphs on multi-hop questions from Finding 8: every graph run had denied tool calls, so it is inconclusive in both directions.
 - That a hierarchy answers questions well. Only its size was measured.
 - Absolute token or dollar figures. The token count is characters divided by 4, and the baseline agent is a simulated policy, not measured agent traces.
 - Results for the repository's own mapper. All graphs here come from the external Graphify.
@@ -214,7 +215,7 @@ python3 experiments/simulate_cost.py gson yapf brotli magika --budget 50
 
 ## Next steps
 
-1. Give the graph tool the shape the flow question asks for: a traversal with `--depth` and `--limit` that returns the two-step closure, then rerun the flow trial. Also try a graph-first, search-second agent prompt.
+1. Rerun the flow trial with the one-command instruction (check that the `den` column is 0 for the graph condition), into a new results directory. Then give the tool the shape the question asks for: a traversal with `--depth` and `--limit` that returns the two-step closure, and try a graph-first, search-second prompt.
 2. Add a column for a graph-first, grep-second agent (the intended workflow).
 3. Compare `merge-graphs` and the manifest edges on a repo set that contains real dependencies (gson, libphonenumber, googletest, flatbuffers, dagger).
 4. Test whether the hierarchy answers the registry's 20 questions.
