@@ -162,6 +162,14 @@ Reading:
 - Plain search itself reached only 0.57 to 0.83 F1, and A's precision of 0.53 on the first question suggests the agent and the approximate reference disagree about what "takes part" means. These questions are hard and the reference is imperfect.
 - Three repeats per cell. Ranges overlap on two of the three questions, so read this as direction, not significance.
 
+## Related work
+
+I read abstracts and listings only, not the full papers or code, and did not search for published comparisons of graph-assisted agents against plain search.
+
+- **LogicLens** (arXiv [2601.10773](https://arxiv.org/abs/2601.10773), January 2026): a semantic graph across repositories that combines structural analysis (dependencies, inheritance, invocations, within and across repositories) with an LLM-built layer of domain entities and workflows, queried in natural language. This work differs in two ways: no LLM is used to build the graphs, and cross-repository links come only from declared package-manifest dependencies. The two have not been compared.
+- **codebadger** (arXiv [2603.24837](https://arxiv.org/abs/2603.24837), ICSE 2026 workshop): an MCP server over Joern's code property graph that gives an agent bounded tools (summary, taint sources, program slice) rather than the graph. This is the same direction as the budgeted drill-down here; it has not been evaluated in this work.
+- **Community code-graph servers** such as [optave codegraph](https://github.com/optave/ops-codegraph-tool/wiki), [colbymchenry codegraph](https://cdn.jsdelivr.net/npm/@colbymchenry/codegraph@1.1.1/README.md) and [CodeCompass](https://pypi.org/project/codecompass-mcp/) expose blast-radius and impact tools over MCP. They are independent projects, not GitHub products. Tree-sitter graph tools for agents are therefore not novel; the contribution here is the measurements and their limits.
+
 ## Prior art in this repository
 
 `graph_registry.py` routes a question to the right repo's graph. On 18 repos and 20 user-written questions: 11 confident and correct, 1 confident and wrong, 8 ambiguous. This was not a held-out test and its thresholds are uncalibrated (see `scripts/graph_registry.py`).
