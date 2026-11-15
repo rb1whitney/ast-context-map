@@ -6,13 +6,17 @@ Experiments on what happens when you combine per-repository code graphs, and on 
 
 | Path | Contents |
 | :--- | :--- |
-| `FINDINGS.md` | Results, caveats, limits |
+| `FINDINGS.md` | Eighteen findings with a status table, runs and cost, answer keys, claim lists, limits |
 | `experiments/merge_stats.py` | What `graphify merge-graphs` produces (size, cross-repo edges, bridge nodes) |
 | `experiments/manifest_deps.py` | Cross-repo dependency edges from package manifests |
 | `experiments/simulate_cost.py` | Simulated context cost of a search agent against a graph agent (no model) |
-| `experiments/trial/trial.py` | Measured agent trial with real model runs and a dollar cap per run |
+| `experiments/graph_ceiling.py` | The recall ceiling of a mapper graph against an answer key |
+| `experiments/java_reference.py` | A name-resolving Java answer key (imports, packages, static imports) |
+| `experiments/jdeps_reference.py`, `experiments/jdeps/stubs/` | A compiler-derived key for gson, and the stubs needed to compile it |
+| `experiments/trial/trial.py` | Measured agent trial: conditions A to D, a dollar cap per run, tool-call logging |
+| `experiments/trial/questions*.json` | The questions and answer keys (`questions_flow_v2.json` is the name-resolving key) |
 | `corpus/` | Pinned commits, graph commits, extraction timings, `clone_corpus.sh` |
-| `data/` | Per-run results of the first trial (no local paths) |
+| `data/` | Per-run results and score tables for every trial (no local paths) |
 
 ## Reproduce
 
@@ -41,10 +45,10 @@ python3 ../../scripts/code_mapper.py gson --force --out-dir experiments/trial/gr
 python3 experiments/trial/trial.py run --pilot --dry-run   # prints the commands without running them
 ```
 
-Each run has a hard dollar cap (`--cap`) and the whole trial stops at `--total-cap`. The first trial of 36 runs on the smallest model cost about $0.18.
+Each run has a hard dollar cap (`--cap`) and the whole trial stops at `--total-cap`. Every trial used the smallest model; all 115 saved runs cost $1.15 in total. The full reproduce list, including the answer-key scripts and the closure trial, is at the end of [FINDINGS.md](FINDINGS.md).
 
 ## Caveats
 
-- Graph sizes and extraction times come from the external Graphify, not from this repository's mapper.
+- Findings 1 to 6 use graphs from the external Graphify; the agent trials use this repository's mapper.
 - The agent trial used one small model, three repeats and two repositories. Treat results as direction, not significance.
-- Raw run files are not published; `data/trial-before-runs.csv` has the scored runs.
+- Raw run files are not published because they contain local paths; the `data/` folder has one scored row per run for every trial.

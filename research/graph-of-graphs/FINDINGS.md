@@ -4,7 +4,55 @@ Evidence for an article on combining ast-grep, the semantic code graph, and Grap
 
 ## Thesis
 
-Merging per-repo code graphs does not produce a graph of graphs. It produces a larger graph that is too big to use as agent context and whose cross-repo links are mostly shared standard-library names. A useful graph of graphs needs explicit dependency edges, a hierarchy (repos, then communities, then symbols), and a node budget that tells the reader how to go deeper. The graph answers a structural question in a fraction of the tokens that reading files costs, but it is incomplete, so the deeper step is a targeted search rather than more graph.
+Merging per-repository code graphs does not make a graph of graphs. It makes a bigger graph that is too large to use as agent context, and whose cross-repository links are mostly shared standard-library names. Real cross-repository edges come from package manifests, and a usable multi-repository view needs a hierarchy and a budget.
+
+For agents, a graph tool changes the trade between cost and completeness, and the trade depends on the graph and on the shape of the tool. With the first mapper, agents were cheaper than search but found about half of the right files (recall 0.48 against 0.96), largely because the graph was missing data: annotation types and static imports. Fixing the mapper raised recall to 0.78 but erased the cost advantage, because agents walked the graph one hop at a time (33 queries and 36 turns, against 20 turns for search). A single `closure` call with a coverage footer cut the cost to $0.004 a run (a third of search) and input tokens to an eighth, at F1 0.84 against 0.94. In every logged run the agents answered from the graph and did not verify, even when told to. Which answer key is used can decide the winner: a grep-built key favors search, a compiler-derived key favored the graph on gson.
+
+## Status of the findings
+
+| Finding | Topic | Status |
+| :--- | :--- | :--- |
+| 1 | Raw graph sizes | Current |
+| 2 | `merge-graphs` is concatenation | Current (edges equal the sum; 266 of the nodes were merged) |
+| 3 | Bridges are standard-library names | Current; the last 64 of 104 non-stoplist bridges were not read |
+| 4 | Manifest dependency edges | Current; recall 7 of the 10 edges known |
+| 5 | Hierarchy size | Current; only size measured |
+| 6 | Simulated cost | Current as a simulation; its coverage plateau was measured against grep-built keys (see 11 and 12) |
+| 7 | "Who uses X" trial | Cost current; accuracy depends on the key (11); the yapf graph had no dependents (12) |
+| 8 | First flow trial | Superseded by 9 (every graph run had denied tool calls) |
+| 9 | Clean flow trial | Numbers current against the old key; its cause was superseded by 10; rescored in 14 |
+| 10 | Graph recall ceiling | Current; the mapper gaps it found were fixed in 11 and 13 |
+| 11 | Compiler-derived key on gson | Current |
+| 12 | Answers to review questions | Current; one claim about `jdeps` and retention was corrected in the text |
+| 13 | Static imports | Current; not checked against a compiler |
+| 14 | Name-resolving key | Current; supersedes the old key |
+| 15 | Closure query and footer | Current |
+| 16 | Rebuilt graph | Current |
+| 17 | Closure trial | Current |
+| 18 | Build time against Graphify | Current; indicative, not a controlled benchmark |
+
+## Runs and cost
+
+| Trial | Findings | Runs | Cost | Per-run data |
+| :--- | :--- | ---: | ---: | :--- |
+| gson and yapf, search against graph | 7 | 36 | $0.181 | `data/trial-before-runs.csv` |
+| dagger flow, first attempt (denied calls) | 8 | 18 | $0.230 | `data/trial-flow-runs.csv` |
+| dagger flow, clean, A, B and C | 9 | 27 | $0.357 | `data/trial-flow-v3-runs.csv` |
+| dagger flow, rebuilt graph, A and B | 16 | 18 | $0.286 | `data/trial-flow-v4-runs.csv` |
+| dagger flow, closure, D | 17 | 9 | $0.034 | `data/trial-flow-v5-runs.csv` |
+| pilots and two interrupted runs | | 7 | $0.057 | not published |
+| **Total** | | **115** | **$1.145** | |
+
+All runs used `claude-haiku-5-5` (from the run files). The cost excludes the assistant sessions that built and analysed the experiments and any unsaved interrupted runs.
+
+## Which answer key each finding uses
+
+| Key | Built from | Findings |
+| :--- | :--- | :--- |
+| grep-built | `git grep -w` over non-test files | 6, 7 |
+| text closure, unique names | identifier mentions among classes of five or more letters occurring in one file | 8, 9, 10, 12, 13 |
+| compiler-derived | `jdeps` over compiled gson classes (RUNTIME-retained annotations only) | 11 |
+| name-resolving text | imports, own package, wildcard imports, static imports; comments, strings and import lines ignored | 14, 15, 16, 17 |
 
 ## Corpus and method
 
@@ -290,7 +338,7 @@ What the one-hop graph answer tells an agent: `find-usages MissingBindingValidat
 
 Search agents' false positives, MissingBindingValidator (3 runs): 23 distinct entries were answered but are not in the reference. 21 are classes the reference cannot represent at all, because its class map only uses names of five or more letters that occur in exactly one file (about 100 of the 722 main-source files fall outside it): `BindingGraph`, `Binding`, `Key`, `DependencyRequest`, `DiagnosticReporter`, `DaggerElement` and others. Two sit at three and four hops. By name these are plausible dependencies of a missing-binding validator, so the search agents' precision of 0.53 on that question is understated by the reference. I did not verify each by reading. The mapper has the same limitation (it keys classes by simple name, so same-named classes collapse), so both conditions are affected, in different ways. Treat the dagger flow numbers as measured against a partial reference.
 
-Model and cost: every saved run used `claude-haiku-5-5` (from the run files). All 88 saved runs cost $0.825: 36 "who uses X" runs $0.181, 18 flow runs $0.230, 27 flow reruns $0.357, 5 pilot runs $0.026, and 2 interrupted rerun runs $0.031. The 81 measured runs, without pilots and the interrupted pair, cost $0.768. Interrupted runs that were not saved may have cost a little more. This excludes the cost of the assistant sessions that built and analysed the experiments.
+Model and cost: every saved run used `claude-haiku-5-5` (from the run files). At that point 88 saved runs had cost $0.825 (the final total is in "Runs and cost"): 36 "who uses X" runs $0.181, 18 flow runs $0.230, 27 flow reruns $0.357, 5 pilot runs $0.026, and 2 interrupted rerun runs $0.031. The 81 measured runs, without pilots and the interrupted pair, cost $0.768. Interrupted runs that were not saved may have cost a little more. This excludes the cost of the assistant sessions that built and analysed the experiments.
 
 ## Finding 13: resolving static imports in the mapper (dagger)
 
@@ -451,53 +499,75 @@ I read LogicLens and codebadger in full (text supplied by the author). The commu
 
 ## What is safe to claim
 
-- Union graphs of real repositories reach tens to hundreds of megabytes.
-- `merge-graphs` concatenates; it produced no direct cross-repo edge, and its bridges are mostly standard-library names.
-- Explicit dependency extraction from manifests finds real edges but needs per-ecosystem parsing and care with name collisions between ecosystems.
-- For structural questions on the sampled repos, a budgeted graph answer is several times smaller than reading files and tens of times smaller than reading whole files, at the cost of coverage.
-- With an uncapped, symbol-level tool, an agent using the graph spent more turns and tokens than plain search on "who uses X" questions. Accuracy depended on the reference: lower against a grep-built reference, higher against compiler-derived dependencies on gson (Findings 7 and 11).
-- On gson the mapper graph's dependents match compiled dependencies (precision 1.00, recall 0.88 to 1.00), and modelling annotation types moved five annotation types from no dependents found to an exact match (Finding 11).
-- On two-step flow questions in dagger, graph-assisted agents used about 40 percent fewer input tokens and cost 20 to 27 percent less, but found fewer of the right files (recall 0.46 against 0.75, F1 0.53 against 0.80). They used the graph in every run and a stronger nudge changed nothing (Finding 9).
+- Union graphs of real repositories reach tens to hundreds of megabytes (guava: 128.6 MB with Graphify's extractor, 24 MB with this repository's mapper). Both need a budget before an agent can use them.
+- `merge-graphs` concatenates: its edges equal the sum of the inputs, it produced no direct cross-repository edge, and its bridges are mostly standard-library names.
+- Package manifests give real cross-repository dependency edges, but they are sparse (7 among 20 repositories) and need per-ecosystem parsing and care with name collisions between ecosystems.
+- Which answer key is used can decide the accuracy ranking. On gson, search scored F1 1.00 against a grep-built key and 0.84 against compiled dependencies; the graph scored 0.89 and 1.00 (Finding 11).
+- Two mapper gaps were real and are fixed: annotation types (on gson, five annotation types went from no dependents found to an exact match against `jdeps`) and static-import calls (1,704 more resolved calls on dagger). Against the name-resolving key, the mapper's two-hop ceiling on three dagger questions rose from 0.54 to 0.84 (Findings 11, 13, 14).
+- On dagger flow questions, scored against the name-resolving key: search F1 0.94 to 0.96; graph agents with the first mapper 0.65 (recall 0.48); with the rebuilt mapper 0.88 (recall 0.78) at the same cost and more turns; with the `closure` query and footer 0.84 (recall 0.83) at $0.004 a run, 2 turns and 26,662 input tokens, against $0.013, 20 turns and 219,125 for search (Findings 14, 16, 17).
+- In every logged run (Findings 9, 16, 17) the agents used the graph, a soft prompt was as effective as a strong one, and they mostly did not verify: a median of one or two searches and no file reads.
+- The mapper built its graph 7.6 to 17 times faster than Graphify's `extract --code-only` on four repositories, with a smaller graph (Finding 18).
+- On gson and yapf "who uses X" questions with the class named, plain search was cheaper: 2 turns against 5 and about 2.7 times fewer input tokens (Finding 7).
 
 ## What not to claim
 
-- That the graph replaces search. Coverage plateaus near 0.4 on three of four repos, and in the trial plain search was cheaper on direct-usage questions.
-- That search is more accurate than graph answers: that comparison reversed when the reference changed from grep to compiled dependencies (Finding 11).
-- That graphs lose in general. Findings 7 and 8 tested two tool shapes on two question types with one small model.
-- Anything from Finding 8, where every graph run had denied tool calls; use Finding 9.
-- That the graph tools help on multi-hop questions: in Finding 9 they were cheaper but found fewer of the right files.
-- That the agents under-used the graph in the flow trial: their recall matched the graph's own ceiling (Finding 10).
-- That the footer makes agents verify: in Finding 17 they made one call, copied the list, and mostly did not search or read.
-- That the closure query matches search quality: F1 0.84 against 0.94, with a missed bar of 0.01.
-- That a stronger prompt or hook is needed for agents to use the graph. Adoption was 9 of 9 even with the soft prompt in this setup.
+- That the graph replaces search or matches its quality. The closure query scored F1 0.84 against 0.94, and one pre-registered bar (F1 0.85) was missed by 0.01.
+- That graphs lose in general, or that they win. The trials cover one small model, two question types, three flow questions and one large repository.
+- That search is more accurate than graph answers. That comparison reversed when the key changed from grep to compiled dependencies (Finding 11).
+- That the footer makes agents verify. In Finding 17 they made one call, copied the list, and mostly did not search or read. No task yet put a flagged blind spot in front of them.
+- That agents "didn't know" they were trading. The prompts demanded a bare file list, so they had no way to say so; the `UNVERIFIED:` condition exists but has not been run.
+- That a stronger prompt or an enforcing hook is needed for agents to use the graph: adoption was 9 of 9 with the soft prompt.
 - That a hierarchy answers questions well. Only its size was measured.
-- Absolute token or dollar figures. The token count is characters divided by 4, and the baseline agent is a simulated policy, not measured agent traces.
-- Results for the repository's own mapper. All graphs here come from the external Graphify.
-- That the 7 dependency edges are complete or all runtime dependencies.
+- That the speed gap over Graphify grows with repository size (it did not: 9, 12.5, 17 and 7.6 times), or that the mapper is a better tool: it is narrower.
+- That the name-resolving key is compiler-grade, or that Finding 13 was checked against a compiler. Only gson has a compiler-derived key.
+- That the 7 manifest edges are complete or all runtime dependencies.
+- Anything from Finding 8, or the cause given in Finding 9. Use Findings 10, 14 and 16.
+- Absolute token figures from the simulation (characters divided by 4), or results from production systems, which are not reproducible here.
 
 ## Limits of the evidence
 
-- The question set is hub classes, which biases toward well-connected code.
-- The reference set for coverage (files containing the word) includes comments, documentation and strings.
-- Twenty repos, mostly Google and mostly independent; results may differ elsewhere.
-- Nine repos were merged, not all eighteen; the merge comparison is not yet like-for-like with the dependency edges, which involve larger graphs.
+- Samples are small: three repeats per cell. In the closure trial the agents gave near-identical answers each time, so the nine runs are effectively three outcomes. Some score ranges overlap, and search itself moved from 0.96 to 0.94 F1 between runs.
+- One model: `claude-haiku-5-5`, the smallest available. Larger models may use tools differently.
+- Answer keys are approximate. Only one module of one repository (gson) has a compiler-derived key, `jdeps` reports only RUNTIME-retained annotations, and four types were stubbed to compile. The question set is hub classes, which biases toward well-connected code.
+- Findings 1 to 6 use Graphify's graphs; the agent trials (7 and 9 to 17) use this repository's mapper. The mapper builds a smaller graph, and for Python only a module-level one.
+- Twenty repositories, mostly Google and mostly independent of each other; results may differ elsewhere. Search was very strong at the size of dagger (about 2,000 files); the effect of a much larger repository is untested.
+- Comparison runs were made at different times, and from Finding 16 on the query script changed (a coverage footer was added), so older graph runs are not comparable with newer ones.
 
 ## Reproduce
 
-All commands run from `research/graph-of-graphs` after fetching the corpus (see README), and are read-only except `trial.py run`, which makes paid model calls.
+All commands run from `research/graph-of-graphs` after fetching the corpus (see README). Everything is read-only except `trial.py run`, which makes paid model calls.
 
 ```bash
+# graph-of-graphs experiments (Graphify graphs under _graphs/<repo>/graphify-out/)
 python3 experiments/merge_stats.py --out-dir <new empty dir>
-python3 experiments/manifest_deps.py > edges.json
+python3 experiments/manifest_deps.py --root . > edges.json
 python3 experiments/simulate_cost.py gson yapf brotli zx magika langextract
-python3 experiments/simulate_cost.py gson yapf brotli magika --budget 50
+
+# this repository's mapper graphs, the inputs to the agent trials
+python3 ../../scripts/code_mapper.py dagger --force --out-dir experiments/trial/graphs/dagger-v4
+
+# answer keys and ceilings
+python3 experiments/java_reference.py --clones . --repo dagger --questions experiments/trial/questions_flow.json --out experiments/trial/questions_flow_v2.json
+python3 experiments/graph_ceiling.py --graph experiments/trial/graphs/dagger-v4/relationship_graph.json --questions experiments/trial/questions_flow_v2.json --clones . --repo dagger
+python3 experiments/jdeps_reference.py --help        # compile gson with the stubs, then compare with jdeps
+
+# the closure query, no agent involved
+python3 ../../scripts/semantic_query.py --graph experiments/trial/graphs/dagger-v4/relationship_graph.json closure MissingBindingValidator --depth 2 --limit 40
+
+# agent trials (paid; each run is capped, and the trial stops at --total-cap)
+python3 experiments/trial/trial.py run --reps 3 --conds A,B,D --cap 0.20 --total-cap 3.0 --stop-on-denial --graph-suffix=-v4 --questions experiments/trial/questions_flow_v2.json --results-dir experiments/trial/results-flow-v5
+python3 experiments/trial/trial.py score --questions experiments/trial/questions_flow_v2.json --results-dir experiments/trial/results-flow-v5
 ```
+
+Conditions: A search only, B graph with a soft nudge, C graph with a strong nudge, D graph with `closure` and the coverage footer. `--uncertainty` adds an `UNVERIFIED:` line to the answer format.
 
 ## Next steps
 
-1. Test whether agents verify when the footer flags a blind spot: a task whose closure includes reflection-wired or framework-wired files, with the `UNVERIFIED:` line, and a planted dependency the build cannot catch. Check the repository-size effect on a very large monolith, and add Python class-usage edges (the yapf graph named no dependents).
-2. Add a column for a graph-first, grep-second agent (the intended workflow).
-3. Compare `merge-graphs` and the manifest edges on a repo set that contains real dependencies (gson, libphonenumber, googletest, flatbuffers, dagger).
-4. Test whether the hierarchy answers the registry's 20 questions.
-5. Add a dependency scope tag (runtime, test, benchmark) to the manifest edges.
-6. Add `--files` and `--limit` to `semantic_query.py` and rerun the 36-run trial as the "after" into a new results directory.
+1. Put a flagged blind spot in front of the agents: a task whose closure contains reflection-wired or framework-wired files, a planted dependency the build cannot catch, and the `UNVERIFIED:` line. This is the test of whether the footer makes agents verify.
+2. Test the effect of repository size on a very large monolith, where search returns long match lists.
+3. Add Python class-usage edges: the yapf graph named no dependents.
+4. Key classes by package-qualified name so same-named classes stop collapsing in the mapper.
+5. Check the name-resolving key and the static-import change against a compiler on a second repository.
+6. Compare `merge-graphs` and the manifest edges on a set of repositories that contains real dependencies, and test whether the hierarchy answers questions.
+7. Add a dependency scope tag (runtime, test, benchmark) to the manifest edges.
+8. Try a graph-first, search-second prompt variant.
