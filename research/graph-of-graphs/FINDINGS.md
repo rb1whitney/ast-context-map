@@ -194,7 +194,7 @@ Reading:
 - The nudge made no difference. The graph was used in 9 of 9 runs in both B and C, and a graph call was the first tool call every time. The strong prompt changed neither cost nor F1. The low-adoption problem reported for other setups did not appear here (one small model, the tool described in the prompt).
 - What the agents did: they ran the one-hop `semantic_query.py` a median of 23 (B) and 22 (C) times per run, searched about once or twice, and read no source files. They never used `auto_context.py`, the ranked-list tool the prompt listed first. The search-only agents ran a median of 11 searches and 5 file reads.
 - This corrects the cause suggested for Finding 8, which assumed the agents used the ranked top-40 list. They did not. A better-supported hypothesis, not tested: hop-by-hop one-hop queries return class and method names rather than files, and the agents answered from them without reading code or searching, stopping before the two-step set was complete. (Superseded by Finding 10: the graph agents reached the graph's own recall ceiling, so the gap is in the graph.)
-- Limits: three repeats per cell, one small model, an approximate text-based reference, and plain search itself reached only 0.80 F1. Some F1 ranges overlap (A 0.57-0.86 against B 0.39-0.63).
+- Limits: three repeats per cell, one small model, an approximate text-based reference, and plain search itself reached only 0.80 F1. Some F1 ranges overlap (A 0.57-0.86 against B 0.39-0.63). The reference cannot represent classes with short or duplicated simple names, which understates search precision (Finding 12).
 
 ## Finding 10: the graph's own recall ceiling explains the flow result (dagger)
 
@@ -250,6 +250,47 @@ Reading:
 - On gson the mapper graph agrees with compiled dependencies: precision 1.00 and recall 0.88 to 1.00. The coverage plateau in Finding 6 was measured against grep-built references; it was not re-measured against compiled dependencies on the other repositories.
 - The annotation fix closes a real gap: all five annotation types went from no dependents found to exactly the files jdeps lists. On dagger the corresponding gain (Finding 10) was measured only against a text reference, because compiling dagger needs Bazel. The annotation files in that reference are all class- or runtime-retained, none source-retained, so a class-file tool would see them too.
 - Limits: one module, three symbols plus five annotation types, nine runs per condition, jdeps does not see source-retention annotations or reflection, and four types are stubbed. This does not show that graph answers are more accurate in general.
+
+## Finding 12: answers to review questions about the dagger result and the references
+
+Free analyses on saved data, no model runs. Pooled counts are over the three flow questions (84 reference entries; the 30 annotation entries are 19 unique files).
+
+Two-hop recall ceiling by what is being asked for (old mapper, mapper after annotation types were modelled, and the Graphify graph of the same repository):
+
+| Entry class | Reference (annotation / other) | Old mapper: all / other / annotation | New mapper: all / other / annotation | Graphify: all / other / annotation |
+| :--- | :--- | :--- | :--- | :--- |
+| MissingBindingValidator | 26 (4 / 22) | 0.58 / 0.68 / 0.00 | 0.58 / 0.68 / 0.00 | 0.81 / 0.86 / 0.50 |
+| HiltViewModelFactory | 32 (16 / 16) | 0.31 / 0.62 / 0.00 | 0.66 / 0.62 / 0.69 | 0.62 / 0.56 / 0.69 |
+| ActivityRetainedComponentManager | 26 (10 / 16) | 0.46 / 0.75 / 0.00 | 0.81 / 0.75 / 0.90 | 0.81 / 0.81 / 0.80 |
+| Pooled | 84 (30 / 54) | 37 of 84 (0.44) | 57 of 84 (0.68) | 62 of 84 (0.74) |
+
+- Annotation types are not the whole story. Leaving them out, the old mapper's ceiling on the other 54 files is 0.69 (37 of 54), and the fix does not change it. The fix recovered 20 files; 27 of 84 are still unreachable at two hops (17 other files and 10 annotation files).
+- The ceiling is computed the way the reference is: two hops, outgoing from the entry file, files as nodes, method-level edges rolled up to the file they start in, targets mapped to files by class name. What differs is what counts as an edge: the reference counts any identifier mention outside comments (imports, generic arguments, strings, annotation names), the graph counts the edge kinds it models. It is a fair bound on depth and direction, not a pure measure of true dependencies.
+- Retention of the 19 unique annotation files: 8 RUNTIME, 10 CLASS (explicit), 1 with no `@Retention` (default CLASS), 0 SOURCE. In the gson build, jdeps reports 0 compiled classes depending on a CLASS-retained annotation stub, so a class-file tool does see class-retained annotations.
+- The 17 other files still unreachable: in the file that points at them, the name appears as a plain type or call use in 9 cases, via a static import in 6 (a call without a receiver, a real mapper gap), and only inside a string literal in 2 (likely reference noise). The 9 plain uses were not examined further.
+- The Graphify graph of dagger has nodes for all 19 annotation files (the mapper had 0 before the fix and 19 after). It reaches more of the reference (0.74 against 0.68), better on one question and worse on another. This is a ceiling only; Graphify's reachable set is also larger, so it says nothing about precision.
+
+"Who uses X" (gson and yapf trial):
+
+- gson: the mapper graph can name 0.75, 0.72 and 0.78 of the grep reference (unchanged by the annotation fix), and the graph agents' recall was 1.00, 0.83 and 0.78: at the ceiling, or above it where the agent also searched. Against compiled dependencies the graph's recall is 0.88 to 1.00 (Finding 11); the gap to the grep reference is mostly files that only mention the name.
+- yapf: the mapper graph has no dependents for `Leaf`, `Node` or `YapfError` (ceiling 0.00). The yapf graph condition therefore had nothing to offer, and its recall of 0.92 to 1.00 came from searching. The yapf rows of Finding 7 are not a test of a working graph.
+
+What the Finding 6 coverage plateau is made of (Graphify graphs, no node budget, symbols as in Finding 6):
+
+| Repository | Reference files | Named by the graph | Missed: code files (real use / comment only) | Missed: tests, docs, config |
+| :--- | ---: | ---: | :--- | :--- |
+| yapf | 63 | 19 (0.30) | 26 (24 / 2) | 12 tests, 4 docs |
+| brotli | 142 | 48 (0.34) | 58 (45 / 13) | 21 tests, 3 docs, 5 config |
+| magika | 137 | 45 (0.33) | 47 (44 / 3) | 26 docs, 9 tests, 1 config |
+| gson | 812 | 605 (0.75) | 92 (12 / 80) | 54 tests, 39 docs, 13 config |
+
+On yapf, brotli and magika the plateau is mostly real code uses the graph did not link, not annotations (the code is Python, C and mixed). On gson it is mostly files that mention the name only in comments or docstrings, which are not dependencies. "Real use" here means a line that is not an import or a comment; it was not checked by reading.
+
+What the one-hop graph answer tells an agent: `find-usages MissingBindingValidator` returns a header and one line. Nothing in it reports a count, truncation, skipped files or possible incompleteness. The agents had no way to see what the graph could not.
+
+Search agents' false positives, MissingBindingValidator (3 runs): 23 distinct entries were answered but are not in the reference. 21 are classes the reference cannot represent at all, because its class map only uses names of five or more letters that occur in exactly one file (about 100 of the 722 main-source files fall outside it): `BindingGraph`, `Binding`, `Key`, `DependencyRequest`, `DiagnosticReporter`, `DaggerElement` and others. Two sit at three and four hops. By name these are plausible dependencies of a missing-binding validator, so the search agents' precision of 0.53 on that question is understated by the reference. I did not verify each by reading. The mapper has the same limitation (it keys classes by simple name, so same-named classes collapse), so both conditions are affected, in different ways. Treat the dagger flow numbers as measured against a partial reference.
+
+Model and cost: every saved run used `claude-haiku-5-5` (from the run files). All 88 saved runs cost $0.825: 36 "who uses X" runs $0.181, 18 flow runs $0.230, 27 flow reruns $0.357, 5 pilot runs $0.026, and 2 interrupted rerun runs $0.031. The 81 measured runs, without pilots and the interrupted pair, cost $0.768. Interrupted runs that were not saved may have cost a little more. This excludes the cost of the assistant sessions that built and analysed the experiments.
 
 ## Related work
 
