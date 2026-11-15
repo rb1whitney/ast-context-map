@@ -193,8 +193,27 @@ Reading:
 - The graph conditions cost 20 to 27 percent less and used about 40 percent fewer input tokens, but found fewer of the right files: recall 0.46 against 0.75 and F1 0.53 against 0.80. F1 was lower on all three questions and cost was lower on all three. Turns were higher on two of the three.
 - The nudge made no difference. The graph was used in 9 of 9 runs in both B and C, and a graph call was the first tool call every time. The strong prompt changed neither cost nor F1. The low-adoption problem reported for other setups did not appear here (one small model, the tool described in the prompt).
 - What the agents did: they ran the one-hop `semantic_query.py` a median of 23 (B) and 22 (C) times per run, searched about once or twice, and read no source files. They never used `auto_context.py`, the ranked-list tool the prompt listed first. The search-only agents ran a median of 11 searches and 5 file reads.
-- This corrects the cause suggested for Finding 8, which assumed the agents used the ranked top-40 list. They did not. A better-supported hypothesis, not tested: hop-by-hop one-hop queries return class and method names rather than files, and the agents answered from them without reading code or searching, stopping before the two-step set was complete.
+- This corrects the cause suggested for Finding 8, which assumed the agents used the ranked top-40 list. They did not. A better-supported hypothesis, not tested: hop-by-hop one-hop queries return class and method names rather than files, and the agents answered from them without reading code or searching, stopping before the two-step set was complete. (Superseded by Finding 10: the graph agents reached the graph's own recall ceiling, so the gap is in the graph.)
 - Limits: three repeats per cell, one small model, an approximate text-based reference, and plain search itself reached only 0.80 F1. Some F1 ranges overlap (A 0.57-0.86 against B 0.39-0.63).
+
+## Finding 10: the graph's own recall ceiling explains the flow result (dagger)
+
+Analysis of the saved runs with no model. For each flow question, I computed which files are reachable within 1, 2 and 3 hops of the entry file in this repository's own mapper graph (file-level, from each edge's source file to the file of its target class), and compared that with the reference set.
+
+| Entry class | Reference files | Reference files present in the graph | Graph ceiling at 2 hops | Graph agents, recall (B / C) | Search agents, recall (A) |
+| :--- | ---: | ---: | ---: | :--- | ---: |
+| MissingBindingValidator | 26 | 0.85 | 0.58 | 0.54 / 0.58 | 0.73 |
+| HiltViewModelFactory | 32 | 0.50 | 0.31 | 0.31 / 0.25 | 0.75 |
+| ActivityRetainedComponentManager | 26 | 0.62 | 0.46 | 0.46 / 0.46 | 0.81 |
+
+Reading:
+
+- The graph agents' recall matches the graph's own ceiling almost exactly. They did not stop early or under-use the graph; they extracted what it contained. Search agents exceeded the ceiling because they read files.
+- 30 of the 84 reference entries (36 percent) are not in the graph at all, and all 30 are annotation type declarations (`@interface` files such as `Provides`, `Module`, `Component`, `BindsInstance` and `Nullable`). The mapper records class, method and constructor nodes only, so annotation types have no node and no edges. Dagger's public API is annotation-heavy, which makes it a hard case for a syntax graph.
+- This replaces the hypothesis in Finding 9 that the agents answered from one-hop results and stopped early. The gap is in the graph.
+- Caveats: the reference is a text closure, so it counts files that merely mention a name; "present in the graph" means the file has at least one node; the ceiling maps edge targets to files by class name, which is approximate; one repository.
+
+What follows from it: extract annotation types and annotation-use edges; have the mapper report what it skipped (unparsed or unmodelled constructs, dynamic calls, injection markers) in each query answer; and grade any such footer against a reference that does not come from text search, for example class dependencies from compiled classes with `jdeps`, since a footer built on `git grep` would close the gap against a grep-built reference by construction. The effect of repository size (does the gap shrink on a very large monolith?) is untested.
 
 ## Related work
 
@@ -224,6 +243,7 @@ I read LogicLens and codebadger in full (text supplied by the author). The commu
 - That graphs lose in general. Findings 7 and 8 tested two tool shapes on two question types with one small model.
 - Anything from Finding 8, where every graph run had denied tool calls; use Finding 9.
 - That the graph tools help on multi-hop questions: in Finding 9 they were cheaper but found fewer of the right files.
+- That the agents under-used the graph in the flow trial: their recall matched the graph's own ceiling (Finding 10).
 - That a stronger prompt or hook is needed for agents to use the graph. Adoption was 9 of 9 even with the soft prompt in this setup.
 - That a hierarchy answers questions well. Only its size was measured.
 - Absolute token or dollar figures. The token count is characters divided by 4, and the baseline agent is a simulated policy, not measured agent traces.
@@ -250,7 +270,7 @@ python3 experiments/simulate_cost.py gson yapf brotli magika --budget 50
 
 ## Next steps
 
-1. Give the graph tool the shape the question asks for: one call that returns the file-level two-step closure (`--depth`, `--files`, `--limit`, with a "more available" footer), keep a verification step, and rerun the flow trial. The agents here made 20 to 40 one-hop queries and read no source, so also test a prompt that requires reading the files the graph names before answering.
+1. Fix the blind spot Finding 10 found: extract annotation type declarations and annotation-use edges in the mapper, and report skipped constructs, dynamic call sites and injection markers in each query answer. Evaluate against a reference not built from text search (class dependencies from compiled classes). Then test a file-level closure call and a footer-plus-verification condition, and the repository-size effect on a very large monolith.
 2. Add a column for a graph-first, grep-second agent (the intended workflow).
 3. Compare `merge-graphs` and the manifest edges on a repo set that contains real dependencies (gson, libphonenumber, googletest, flatbuffers, dagger).
 4. Test whether the hierarchy answers the registry's 20 questions.
