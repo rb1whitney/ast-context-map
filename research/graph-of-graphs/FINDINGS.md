@@ -352,6 +352,40 @@ The file list `closure` prints, scored against the javac-style reference of Find
 - On dagger the footer recorded no blind spots for the MissingBindingValidator closure, although the graph carries 21 reflection call sites in 17 files elsewhere in the repository. The flags are per class from the file's text, so they say little about code outside the answer.
 - Limits: one repository, three questions, a text-based reference that is not a compiler, precision of 0.68 on the Hilt question means a third of the list is files the reference does not count.
 
+## Finding 16: the rebuilt graph closes most of the quality gap, and the cost advantage disappears (dagger flow)
+
+Experiment: the flow trial rerun with the mapper graph rebuilt with annotation types and static-import resolution (Findings 10 and 13). Conditions A (search) and B (graph, soft nudge) only, the javac-style reference of Finding 14, the same small model, 3 repeats, 18 runs, $0.286. The query script was the earlier one, with no `closure` command and no coverage footer, so only the graph changed. 0 denied tool calls and the graph was used in 9 of 9 graph runs. Stored: `data/trial-flow-v4-runs.csv` and `data/trial-flow-v4-scores.txt`.
+
+Pooled medians (the first three rows are the same questions and reference):
+
+| Condition | F1 | Recall | Precision | Cost per run | Turns | Input tokens | Graph / search / read calls |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: | :--- |
+| A search, earlier run (Finding 14) | 0.96 | 1.00 | 0.93 | $0.015 | 19 | 219,270 | 0 / 11 / 5 |
+| B with the original graph (Finding 14) | 0.65 | 0.48 | 0.90 | $0.012 | 28 | 131,063 | 23 / 1 / 0 |
+| A search, this run | 0.94 | 0.96 | 1.00 | $0.013 | 20 | 219,125 | 0 / 13 / 3 |
+| B with the rebuilt graph, this run | 0.88 | 0.78 | 1.00 | $0.013 | 36 | 187,485 | 33 / 1 / 0 |
+
+By question (this run, medians):
+
+| Entry class | Cond | F1 (range) | Recall | Cost | Turns | Input tokens | Graph / search / read |
+| :--- | :--- | :--- | ---: | ---: | ---: | ---: | :--- |
+| MissingBindingValidator | A | 0.94 (0.90-0.97) | 0.97 | $0.022 | 23 | 503,082 | 0 / 20 / 2 |
+| MissingBindingValidator | B | 0.93 (0.92-0.93) | 0.92 | $0.022 | 57 | 318,749 | 55 / 2 / 0 |
+| HiltViewModelFactory | A | 0.98 (0.87-1.00) | 0.96 | $0.011 | 18 | 140,394 | 0 / 9 / 8 |
+| HiltViewModelFactory | B | 0.87 (0.87-0.89) | 0.77 | $0.013 | 36 | 187,485 | 33 / 1 / 0 |
+| ActivityRetainedComponentManager | A | 0.92 (0.92-1.00) | 0.96 | $0.013 | 21 | 219,125 | 0 / 12 / 7 |
+| ActivityRetainedComponentManager | B | 0.85 (0.63-0.88) | 0.74 | $0.012 | 30 | 122,445 | 28 / 1 / 0 |
+
+Reading:
+
+- Quality: the mapper fixes closed most of the gap. Graph-agent F1 rose from 0.65 to 0.88 and recall from 0.48 to 0.78, close to the rebuilt graph's pooled ceiling of 0.84, with precision 1.00. The gap to search fell from 0.31 F1 to 0.06. It reached parity on MissingBindingValidator (0.93 against 0.94) and still trails on the other two.
+- Cost: the advantage is gone. Both conditions cost $0.013 at the median. The graph agents used 36 turns against 20 and made a median of 33 one-hop graph queries per run (55 on the first question) with one search and no file reads. Input tokens fell 14 percent pooled, from 37 percent less to 34 percent more depending on the question.
+- Interpretation: the earlier saving came partly from the graph returning less. Once it returns the right files, the agent spends its turns walking it hop by hop. That is what the `closure` command (Finding 15) is meant to collapse into one call; it is untested with agents.
+- Search agents' F1 was 0.96 in the earlier run and 0.94 here, a sense of run-to-run noise. Ranges overlap (A 0.87-1.00, B 0.63-0.93).
+- Limits: nine runs per condition, three questions, a text-based reference, one small model.
+
+Cost of everything run so far: 106 saved runs, $1.11 (the earlier total of $0.825 plus this run's $0.286).
+
 ## Related work
 
 I read LogicLens and codebadger in full (text supplied by the author). The community tools below were read as listings only. This is not a survey of the wider literature.
