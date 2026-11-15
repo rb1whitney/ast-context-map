@@ -6,8 +6,8 @@ wildcard imports; a static import `a.b.C.m` counts as a reference to C when `m` 
 literals and import lines are ignored, so a name that appears only there is not a dependency. Two classes with the
 same simple name in different packages stay separate, which the earlier unique-name reference could not do.
 
-  python3 experiments/java_reference.py --clones DIR --repo dagger --questions questions_flow.json --out questions_flow_v2.json \
-      [--graph NAME=relationship_graph.json ...] [--results DIR]
+  python3 experiments/java_reference.py --clones DIR --repo dagger --questions questions_flow.json \
+      --out questions_flow_v2.json [--graph NAME=relationship_graph.json ...] [--results DIR]
 """
 
 import argparse
