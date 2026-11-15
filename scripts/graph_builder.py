@@ -571,6 +571,13 @@ class GraphBuilder:
                     "imports": unit.get("imports", []),
                     "annotations": info["annotations"],
                 }
+                gaps: Dict[str, Any] = {}
+                if unit.get("dynamic_sites"):
+                    gaps["dynamic_sites"] = unit["dynamic_sites"]
+                if unit.get("has_error"):
+                    gaps["parse_error"] = True
+                if gaps:
+                    self.symbol_table[name]["gaps"] = gaps
                 for header in cls.children:
                     if header.type in ("superclass", "super_interfaces", "extends_interfaces"):
                         for t in self._direct_types(header):

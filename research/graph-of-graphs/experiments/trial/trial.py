@@ -78,6 +78,14 @@ STRONG = (
     "\n\nBefore you search or read any source file, run a graph query first. Then verify with search or by reading only "
     "the files the graph points to."
 )
+CLOSURE_DOC = (
+    "\n\nA prebuilt code graph of this repository is available. For a question about what a class depends on, start with:\n"
+    "  python3 {tool} --graph {graph} closure <ClassName> --depth 2 --limit 40\n"
+    "It lists the files within two hops, nearest first, and ends with a coverage note that says what the graph cannot see "
+    "and what to verify. Other queries: python3 {tool} --graph {graph} <find-definition|find-usages|impact|trace-dependencies> "
+    "<Name>. Run exactly one command per call (no cd, shell variables, pipes or loops: compound commands are blocked). "
+    "Use it first; verify with search when unsure."
+)
 FLOW_PROMPT = (
     "Starting from the class `{sym}`, list the main-source files that take part in what it does: the files of the classes it "
     "uses, and the files of the classes those use (two steps from `{sym}`). Exclude tests and the file of `{sym}` itself."
@@ -201,10 +209,13 @@ def run(args) -> None:
             continue
         root = str(LAB / repo)
         prompt = q["prompt"] + SUFFIX.format(root=root)
-        if cond in ("B", "C"):
+        if cond in ("B", "C", "D"):
             graph = HERE / "graphs" / f"{repo}{args.graph_suffix}" / "relationship_graph.json"
-            prompt += (FLOW_DOC.format(auto=AUTO, tool=TOOL, graph=graph) if q.get("type") == "flow"
-                       else TOOL_DOC.format(tool=TOOL, graph=graph))
+            if cond == "D":
+                prompt += CLOSURE_DOC.format(tool=TOOL, graph=graph)
+            else:
+                doc = FLOW_DOC.format(auto=AUTO, tool=TOOL, graph=graph) if q.get("type") == "flow" else None
+                prompt += doc or TOOL_DOC.format(tool=TOOL, graph=graph)
         if cond == "C":
             prompt += STRONG
         if args.uncertainty:
@@ -316,7 +327,7 @@ def main() -> None:
             p.add_argument("--dry-run", action="store_true")
             p.add_argument("--uncertainty", action="store_true", help="ask for a final UNVERIFIED: line; use a fresh --results-dir")
             p.add_argument("--graph-suffix", default="", help="use graphs/<repo><suffix>; write it with an equals sign when it starts with a dash, e.g. --graph-suffix=-v3")
-            p.add_argument("--conds", default="A,B", help="A search only, B graph soft nudge, C graph strong nudge")
+            p.add_argument("--conds", default="A,B", help="A search only, B graph soft nudge, C graph strong nudge, D graph with closure and coverage footer")
             p.add_argument("--stop-on-denial", action="store_true", help="stop at the first run with a denied tool call")
     a = ap.parse_args()
     {"prepare": lambda: prepare(), "prepare-flow": lambda: prepare_flow(), "run": lambda: run(a), "score": lambda: score(a)}[a.cmd]()

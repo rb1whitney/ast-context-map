@@ -114,6 +114,17 @@ Experiments on real repositories, with the caveats written down: [research/graph
 - A budgeted graph answer is far smaller than reading files, but its coverage is incomplete.
 - In measured trials with real model runs (88 saved runs, $0.83 in total, all on claude-haiku-5-5), plain search was cheaper than graph tools. Accuracy depended on the reference: graded against a grep-built reference search looked better, graded against compiled dependencies (jdeps on gson) graph answers scored higher. On two-step flow questions in dagger the graph tools used about 40 percent fewer input tokens but found fewer of the right files, partly because the mapper had no node for annotation types; that is now fixed and checked against compiled dependencies. These are small, single-model trials.
 
+## Closure query with a coverage footer
+
+`semantic_query.py closure <Class> --depth 2 --limit 30` returns, in one call, the files a class's file depends on within N hops, nearest and most-linked first, with the hop, the classes involved and why. It walks files, so nested classes are followed with their file. Answers from `closure`, `find-usages` and `impact` end with a coverage note: how many files or classes the answer covers, where the graph is known to be blind (reflection call sites, framework-wired classes, parse errors), how many results were cut off and how to see them, and a `git grep -lw` command to verify before changing shared code.
+
+```bash
+python3 scripts/code_mapper.py <repo> --out-dir graph
+python3 scripts/semantic_query.py --graph graph/relationship_graph.json closure MissingBindingValidator --depth 2 --limit 30
+```
+
+On dagger the file list it prints, scored against a javac-style reference with no agent involved, has recall 0.92, 0.73 and 0.83 on three flow questions at full depth, with precision 0.92, 0.68 and 0.83 (Finding 15).
+
 ## Safety rules
 
 - Live Kubernetes extraction never lists `secrets`, `configmaps` or `tokenreviews`.

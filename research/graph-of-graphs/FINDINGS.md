@@ -335,6 +335,23 @@ Reading:
 - The graph agents worked with the weakest mapper version, whose ceiling against this reference was 0.54, and their recall (0.48) sits just under it. The improved mapper raises the ceiling to 0.84. Whether the agents reach it is untested: the flow trial needs a rerun with the rebuilt graph (`--graph-suffix -v3`) and the new questions file.
 - Limits: the reference is still not a compiler, one repository, three questions, and the mapper still keys classes by simple name, so same-named classes collapse in the graph.
 
+## Finding 15: a closure query with a coverage footer (dagger, no agent involved)
+
+The mapper now flags each class with reflection call sites and parse errors, and `semantic_query.py` has a `closure <Class> --depth N --limit K` command plus a coverage footer on `closure`, `find-usages` and `impact`. The footer says how many files or classes the answer covers, where the graph is blind for those classes (reflection call sites, framework-wired classes, parse errors), how many results were cut and how to see them, and a `git grep -lw` command to verify.
+
+The file list `closure` prints, scored against the javac-style reference of Finding 14 without any agent:
+
+| Entry class | Limit 30: precision / recall | Full depth: precision / recall | Files at full depth |
+| :--- | :--- | :--- | ---: |
+| MissingBindingValidator | 0.93 / 0.74 | 0.92 / 0.92 | 38 |
+| HiltViewModelFactory | 0.68 / 0.73 | 0.68 / 0.73 | 28 |
+| ActivityRetainedComponentManager | 0.83 / 0.83 | 0.83 / 0.83 | 23 |
+
+- At full depth the recall equals the two-hop ceiling of Finding 14 with the static-import fix (35 of 38, 19 of 26, 19 of 23). A first version that followed only the entry class, not its file, scored 0.74, 0.46 and 0.30 because nested classes were never expanded; the walk now follows files.
+- An agent that copied the list unchanged would score F1 of about 0.92, 0.70 and 0.83, below the search agents' 0.96 median but from one command. Whether agents behave that way, and whether the footer makes them verify, is untested: a new harness condition D (`--conds D`) gives agents the closure command and footer. Condition B now also sees the footer on `find-usages` and `impact`, so earlier B runs are not comparable with new ones.
+- On dagger the footer recorded no blind spots for the MissingBindingValidator closure, although the graph carries 21 reflection call sites in 17 files elsewhere in the repository. The flags are per class from the file's text, so they say little about code outside the answer.
+- Limits: one repository, three questions, a text-based reference that is not a compiler, precision of 0.68 on the Hilt question means a third of the list is files the reference does not count.
+
 ## Related work
 
 I read LogicLens and codebadger in full (text supplied by the author). The community tools below were read as listings only. This is not a survey of the wider literature.
