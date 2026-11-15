@@ -420,6 +420,22 @@ Reading:
 
 Cost of everything run so far: 115 saved runs, $1.15.
 
+## Finding 18: build time of this repository's mapper against Graphify, and what each builds
+
+The mapper's build time was measured on four of the 20 repositories with `/usr/bin/time` (one run each, the guava run reporting 1.5 GB peak memory). Graphify's `extract --code-only` times are the extraction times recorded in `corpus/results.tsv` from the original corpus run, made in an earlier session on the same machine, so the ratios are indicative, not a controlled benchmark. Graph sizes are node counts of the two tools' graphs for the same commit.
+
+| Repository | Graphify extraction | Mapper build | Time ratio | Graphify nodes | Mapper nodes | Graphify nodes per second | Mapper nodes per second |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| gson | 56 s | 6.3 s | 8.9x | 5,131 | 3,790 | 92 | 605 |
+| yapf | 25 s | 2.0 s | 12.5x | 2,055 | 73 | 82 | 36 |
+| dagger | 440 s | 25.7 s | 17.1x | 21,980 | 11,760 | 50 | 457 |
+| guava | 584 s | 77.1 s | 7.6x | 80,690 | 29,275 | 138 | 380 |
+
+- The mapper was 7.6 to 17 times faster in wall-clock time. The ratio did not grow with repository size: 8.9 times on gson, 12.5 on yapf, 17.1 on dagger, 7.6 on guava. Any sentence saying the gap grows at scale is not supported; four points do not show a trend.
+- The two tools do different amounts of work. The mapper builds 1.3 to 2.8 times fewer nodes on the Java repositories and, for Python, a module-level graph (73 nodes for yapf against 2,055). Per node the mapper is 2.8 to 9 times faster on the Java repositories and slower on yapf. Graphify also computes communities and a report, which the mapper does not.
+- On guava the mapper's own graph is 24 MB (29,275 nodes, 52,336 edges) and its `code_map.md` is 7.7 MB, against Graphify's 128.6 MB graph. Both are too large to hand to an agent without a budget. The mapper recorded 13 files with parse errors, 463 reflection call sites in 162 files, 7,173 resolved static-import calls and 140 annotation types on guava.
+- Limits: one run per tool and repository, different sessions, different graph contents, Graphify's parallelism (16 workers) and the mapper's single process not equalised.
+
 ## Related work
 
 I read LogicLens and codebadger in full (text supplied by the author). The community tools below were read as listings only. This is not a survey of the wider literature.
