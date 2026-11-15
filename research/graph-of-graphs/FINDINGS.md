@@ -348,7 +348,7 @@ The file list `closure` prints, scored against the javac-style reference of Find
 | ActivityRetainedComponentManager | 0.83 / 0.83 | 0.83 / 0.83 | 23 |
 
 - At full depth the recall equals the two-hop ceiling of Finding 14 with the static-import fix (35 of 38, 19 of 26, 19 of 23). A first version that followed only the entry class, not its file, scored 0.74, 0.46 and 0.30 because nested classes were never expanded; the walk now follows files.
-- An agent that copied the list unchanged would score F1 of about 0.92, 0.70 and 0.83, below the search agents' 0.96 median but from one command. Whether agents behave that way, and whether the footer makes them verify, is untested: a new harness condition D (`--conds D`) gives agents the closure command and footer. Condition B now also sees the footer on `find-usages` and `impact`, so earlier B runs are not comparable with new ones.
+- An agent that copied the list unchanged would score F1 of about 0.92, 0.70 and 0.83, below the search agents' 0.96 median but from one command. Whether agents behave that way, and whether the footer makes them verify, was tested in Finding 17 with a new harness condition D (`--conds D`) that gives agents the closure command and footer. Condition B now also sees the footer on `find-usages` and `impact`, so earlier B runs are not comparable with new ones.
 - On dagger the footer recorded no blind spots for the MissingBindingValidator closure, although the graph carries 21 reflection call sites in 17 files elsewhere in the repository. The flags are per class from the file's text, so they say little about code outside the answer.
 - Limits: one repository, three questions, a text-based reference that is not a compiler, precision of 0.68 on the Hilt question means a third of the list is files the reference does not count.
 
@@ -380,11 +380,45 @@ Reading:
 
 - Quality: the mapper fixes closed most of the gap. Graph-agent F1 rose from 0.65 to 0.88 and recall from 0.48 to 0.78, close to the rebuilt graph's pooled ceiling of 0.84, with precision 1.00. The gap to search fell from 0.31 F1 to 0.06. It reached parity on MissingBindingValidator (0.93 against 0.94) and still trails on the other two.
 - Cost: the advantage is gone. Both conditions cost $0.013 at the median. The graph agents used 36 turns against 20 and made a median of 33 one-hop graph queries per run (55 on the first question) with one search and no file reads. Input tokens fell 14 percent pooled, from 37 percent less to 34 percent more depending on the question.
-- Interpretation: the earlier saving came partly from the graph returning less. Once it returns the right files, the agent spends its turns walking it hop by hop. That is what the `closure` command (Finding 15) is meant to collapse into one call; it is untested with agents.
+- Interpretation: the earlier saving came partly from the graph returning less. Once it returns the right files, the agent spends its turns walking it hop by hop. That is what the `closure` command (Finding 15) collapses into one call; Finding 17 tests it.
 - Search agents' F1 was 0.96 in the earlier run and 0.94 here, a sense of run-to-run noise. Ranges overlap (A 0.87-1.00, B 0.63-0.93).
 - Limits: nine runs per condition, three questions, a text-based reference, one small model.
 
 Cost of everything run so far: 106 saved runs, $1.11 (the earlier total of $0.825 plus this run's $0.286).
+
+## Finding 17: one closure call cuts cost by two thirds and input tokens by nearly nine tenths, at ten points of F1 (dagger flow)
+
+Experiment: condition D of the harness. The agent is told about `closure <Class> --depth 2 --limit 40`, its coverage footer, and the other graph queries. Same three questions, the javac-style reference of Finding 14, the same small model, 3 repeats, 9 runs, $0.034. The graph was rebuilt with the gap flags (its edges are the same as in Finding 16). Search (A) and the one-hop graph tools (B) are the runs of Finding 16, made earlier with the earlier query script (no `closure`, no footer). 0 denied tool calls; `closure` was used in 9 of 9 runs. Stored: `data/trial-flow-v5-runs.csv` and `data/trial-flow-v5-scores.txt`.
+
+Bars set before the run, against the one-hop graph tools of Finding 16:
+
+| Measure | One-hop tools (B) | Bar | Closure (D) | Met |
+| :--- | ---: | :--- | ---: | :--- |
+| Graph queries per run | 33 | 5 or fewer | 1 | yes |
+| Turns | 36 | 20 or fewer | 2 | yes |
+| Input tokens | 187,485 | below 150,000 | 26,662 | yes |
+| Recall | 0.78 | 0.75 or more | 0.83 | yes |
+| F1 | 0.88 | 0.85 or more | 0.84 | no, by 0.01 |
+
+Pooled medians next to search and the one-hop tools:
+
+| Condition | F1 (range) | Recall | Precision | Cost per run | Turns | Input tokens |
+| :--- | :--- | ---: | ---: | ---: | ---: | ---: |
+| A: search only (Finding 16) | 0.94 (0.87-1.00) | 0.96 | 1.00 | $0.013 | 20 | 219,125 |
+| B: one-hop graph tools (Finding 16) | 0.88 (0.63-0.93) | 0.78 | 1.00 | $0.013 | 36 | 187,485 |
+| D: closure with footer | 0.84 (0.72-0.92) | 0.83 | 0.86 | $0.004 | 2 | 26,662 |
+
+By question (D, medians): MissingBindingValidator F1 0.92 (recall 0.92, precision 0.92, 2 turns); HiltViewModelFactory 0.72 (0.73, 0.70, 2 turns); ActivityRetainedComponentManager 0.84 (0.83, 0.86, 3 turns, 42,496 input tokens).
+
+Reading:
+
+- The tool shape was the cost bottleneck. One `closure` call replaced 33 one-hop queries. Cost fell from $0.013 to $0.004 (69 percent), input tokens by 88 percent against search, and turns from 20 to 2.
+- The agents added nothing to the tool's answer. Each made one graph call and copied the list. The per-question F1 scores equal the tool's own scores from Finding 15 (0.92, 0.70 to 0.72, 0.83 to 0.84), and outcomes were nearly identical across repeats, so three repeats carry little information about variance. Only 3 of 9 runs searched at all (one search each) and none read a file: the footer's verification line did not cause extra work.
+- The trade against search is ten points of F1 (0.84 against 0.94) for about a third of the cost. Against the one-hop tools it is four points of F1: higher recall (0.83 against 0.78) but lower precision (0.86 against 1.00), because `closure` lists every file within two hops where an agent walking hop by hop picks. Quality is bounded by the graph's ceiling and the reference; the weakest question (Hilt) is where the graph and reference disagree most.
+- Whether that trade is good enough depends on the cost of a miss. The F1 bar was missed by 0.01, within the run-to-run noise seen for search (0.96 against 0.94).
+- Limits: nine runs but effectively three distinct outcomes, comparison runs made earlier, D's prompt names `closure` where B's does not, one repository, one small model, a text-based reference.
+
+Cost of everything run so far: 115 saved runs, $1.15.
 
 ## Related work
 
@@ -417,6 +451,8 @@ I read LogicLens and codebadger in full (text supplied by the author). The commu
 - Anything from Finding 8, where every graph run had denied tool calls; use Finding 9.
 - That the graph tools help on multi-hop questions: in Finding 9 they were cheaper but found fewer of the right files.
 - That the agents under-used the graph in the flow trial: their recall matched the graph's own ceiling (Finding 10).
+- That the footer makes agents verify: in Finding 17 they made one call, copied the list, and mostly did not search or read.
+- That the closure query matches search quality: F1 0.84 against 0.94, with a missed bar of 0.01.
 - That a stronger prompt or hook is needed for agents to use the graph. Adoption was 9 of 9 even with the soft prompt in this setup.
 - That a hierarchy answers questions well. Only its size was measured.
 - Absolute token or dollar figures. The token count is characters divided by 4, and the baseline agent is a simulated policy, not measured agent traces.
@@ -443,7 +479,7 @@ python3 experiments/simulate_cost.py gson yapf brotli magika --budget 50
 
 ## Next steps
 
-1. Report what the mapper skipped (dynamic call sites, injection markers, unmodelled constructs) in each query answer and test it as a footer condition, graded against compiled dependencies. Check Finding 6 and the flow trial against compiled references on more repositories, and test the repository-size effect on a very large monolith.
+1. Test whether agents verify when the footer flags a blind spot: a task whose closure includes reflection-wired or framework-wired files, with the `UNVERIFIED:` line, and a planted dependency the build cannot catch. Check the repository-size effect on a very large monolith, and add Python class-usage edges (the yapf graph named no dependents).
 2. Add a column for a graph-first, grep-second agent (the intended workflow).
 3. Compare `merge-graphs` and the manifest edges on a repo set that contains real dependencies (gson, libphonenumber, googletest, flatbuffers, dagger).
 4. Test whether the hierarchy answers the registry's 20 questions.
