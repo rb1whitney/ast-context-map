@@ -188,11 +188,16 @@ def run(args) -> None:
         with tempfile.TemporaryDirectory() as cwd:
             proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, cwd=cwd, timeout=600)
         out.write_text(proc.stdout or json.dumps({"is_error": True, "stderr": proc.stderr[-500:]}))
+        denied = 0
         try:
-            total += float(json.loads(proc.stdout).get("total_cost_usd") or 0)
+            data = json.loads(proc.stdout)
+            total += float(data.get("total_cost_usd") or 0)
+            denied = len(data.get("permission_denials") or [])
         except (json.JSONDecodeError, ValueError):
             pass
-        print(f"{out.name}: running cost ${total:.3f}")
+        print(f"{out.name}: running cost ${total:.3f}" + (f"   DENIED TOOL CALLS: {denied}" if denied else ""))
+        if denied and args.stop_on_denial:
+            sys.exit(f"stopping: {out.name} had {denied} denied tool call(s); fix the allow-rule, then use a fresh --results-dir")
         if total > args.total_cap:
             sys.exit(f"stopping: total cost ${total:.2f} exceeded --total-cap {args.total_cap}")
 
@@ -260,6 +265,7 @@ def main() -> None:
             p.add_argument("--reps", type=int, default=3)
             p.add_argument("--pilot", action="store_true")
             p.add_argument("--dry-run", action="store_true")
+            p.add_argument("--stop-on-denial", action="store_true", help="stop at the first run with a denied tool call")
     a = ap.parse_args()
     {"prepare": lambda: prepare(), "prepare-flow": lambda: prepare_flow(), "run": lambda: run(a), "score": lambda: score(a)}[a.cmd]()
 
