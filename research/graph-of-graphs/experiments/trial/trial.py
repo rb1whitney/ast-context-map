@@ -207,6 +207,11 @@ def run(args) -> None:
                        else TOOL_DOC.format(tool=TOOL, graph=graph))
         if cond == "C":
             prompt += STRONG
+        if args.uncertainty:
+            prompt = prompt.replace(
+                "Reply with the final list only:",
+                "Reply with the final list, then one last line `UNVERIFIED: <what you could not confirm, or none>`. List format:",
+            )
         cmd = build_cmd(cond, args.model, args.cap, repo)
         if args.dry_run:
             print(" ".join(cmd), "<<<", prompt.replace("\n", " | ")[:140])
@@ -227,6 +232,19 @@ def run(args) -> None:
             sys.exit(f"stopping: {out.name} had {denied} denied tool call(s); fix the allow-rule, then use a fresh --results-dir")
         if total > args.total_cap:
             sys.exit(f"stopping: total cost ${total:.2f} exceeded --total-cap {args.total_cap}")
+
+
+UNVERIFIED = re.compile(r"^\s*UNVERIFIED:\s*(.*)$", re.M | re.I)
+NONE_WORDS = ("", "none", "nothing", "n/a", "no")
+
+
+def parse_unverified(text: str):
+    """The agent's own statement of what it could not confirm: (text, says_complete). (None, False) if absent."""
+    found = UNVERIFIED.findall(text or "")
+    if not found:
+        return None, False
+    stated = found[-1].strip().strip("`.").strip()
+    return stated, stated.lower().split(" ")[0].strip(".,;") in NONE_WORDS
 
 
 def prf(answer: set, ref: set) -> tuple[float, float, float]:
@@ -258,6 +276,9 @@ def score(args) -> None:
         rows[(cond, repo)].append({
             "cost": d.get("total_cost_usd") or 0, "turns": d.get("num_turns") or 0, "sec": (d.get("duration_ms") or 0) / 1000,
             "in": tokens_in, "out": u.get("output_tokens", 0), "p": p, "r": r, "f1": f1, "err": bool(d.get("is_error")), "den": bool(d.get("permission_denials")),
+            "unv": parse_unverified(text)[0] is not None,
+            "none": parse_unverified(text)[1],
+            "over": parse_unverified(text)[1] and r < 0.8,
             "gq": sum(1 for c in (d.get("tool_calls") or []) if "semantic_query.py" in c.get("arg", "") or "auto_context.py" in c.get("arg", "")),
         })
     if args.csv:
@@ -267,11 +288,11 @@ def score(args) -> None:
         for (cond, repo, q, rep), x in zip(sorted(allrows, key=lambda t: (t[0], t[1])), flat):
             lines.append(",".join([cond, repo, q, rep.lstrip("r")] + [f"{x[c]:.4g}" if isinstance(x[c], float) else str(x[c]) for c in cols]))
         Path(args.csv).write_text("\n".join(lines) + "\n")
-    print(f"{'cond':4} {'repo':6} {'n':>2} {'err':>3} {'den':>3} {'used':>4} {'cost$ med':>9} {'turns':>6} {'in-tok med':>11} {'out-tok':>8} {'prec':>5} {'rec':>5} {'F1 med (min-max)':>18}")
+    print(f"{'cond':4} {'repo':6} {'n':>2} {'err':>3} {'den':>3} {'used':>4} {'unv':>3} {'none':>4} {'over':>4} {'cost$ med':>9} {'turns':>6} {'in-tok med':>11} {'out-tok':>8} {'prec':>5} {'rec':>5} {'F1 med (min-max)':>18}")
     for (cond, repo), rs in sorted(rows.items()):
         med = lambda k: statistics.median(x[k] for x in rs)
         f1s = [x["f1"] for x in rs]
-        print(f"{cond:4} {repo:6} {len(rs):>2} {sum(x['err'] for x in rs):>3} {sum(x['den'] for x in rs):>3} {sum(1 for x in rs if x['gq']):>4} {med('cost'):>9.3f} {med('turns'):>6.0f} {med('in'):>11.0f} "
+        print(f"{cond:4} {repo:6} {len(rs):>2} {sum(x['err'] for x in rs):>3} {sum(x['den'] for x in rs):>3} {sum(1 for x in rs if x['gq']):>4} {sum(x['unv'] for x in rs):>3} {sum(x['none'] for x in rs):>4} {sum(x['over'] for x in rs):>4} {med('cost'):>9.3f} {med('turns'):>6.0f} {med('in'):>11.0f} "
               f"{med('out'):>8.0f} {med('p'):>5.2f} {med('r'):>5.2f} {statistics.median(f1s):>7.2f} ({min(f1s):.2f}-{max(f1s):.2f})")
 
 
@@ -293,6 +314,7 @@ def main() -> None:
             p.add_argument("--reps", type=int, default=3)
             p.add_argument("--pilot", action="store_true")
             p.add_argument("--dry-run", action="store_true")
+            p.add_argument("--uncertainty", action="store_true", help="ask for a final UNVERIFIED: line; use a fresh --results-dir")
             p.add_argument("--graph-suffix", default="", help="use graphs/<repo><suffix>; write it with an equals sign when it starts with a dash, e.g. --graph-suffix=-v3")
             p.add_argument("--conds", default="A,B", help="A search only, B graph soft nudge, C graph strong nudge")
             p.add_argument("--stop-on-denial", action="store_true", help="stop at the first run with a denied tool call")
