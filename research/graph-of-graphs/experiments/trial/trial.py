@@ -74,6 +74,10 @@ def definition_file(repo: str, sym: str, files: list[str]) -> str | None:
     return None
 
 
+STRONG = (
+    "\n\nBefore you search or read any source file, run a graph query first. Then verify with search or by reading only "
+    "the files the graph points to."
+)
 FLOW_PROMPT = (
     "Starting from the class `{sym}`, list the main-source files that take part in what it does: the files of the classes it "
     "uses, and the files of the classes those use (two steps from `{sym}`). Exclude tests and the file of `{sym}` itself."
@@ -147,7 +151,7 @@ def prepare() -> None:
 
 
 def build_cmd(cond: str, model: str, cap: float, repo: str) -> list[str]:
-    cmd = ["claude", "-p", "--model", model, "--output-format", "json", "--max-budget-usd", str(cap),
+    cmd = ["claude", "-p", "--model", model, "--output-format", "stream-json", "--verbose", "--max-budget-usd", str(cap),
            "--no-session-persistence", "--permission-mode", "dontAsk", "--add-dir", str(LAB / repo)]
     if cond == "A":
         cmd += ["--tools", "Read,Grep,Glob", "--allowedTools", "Read", "Grep", "Glob"]
@@ -155,6 +159,26 @@ def build_cmd(cond: str, model: str, cap: float, repo: str) -> list[str]:
         cmd += ["--tools", "Read,Grep,Glob,Bash", "--allowedTools", "Read", "Grep", "Glob", f"Bash(python3 {TOOL}:*)",
                 f"Bash(python3 {AUTO}:*)"]
     return cmd
+
+
+def parse_stream(stdout: str) -> dict:
+    """Final result event plus the list of tool calls made (name and a short argument) from `--output-format stream-json`."""
+    final, calls = {}, []
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if event.get("type") == "assistant":
+            for block in (event.get("message") or {}).get("content") or []:
+                if block.get("type") == "tool_use":
+                    args = block.get("input") or {}
+                    arg = args.get("command") or args.get("pattern") or args.get("file_path") or args.get("path") or ""
+                    calls.append({"tool": block.get("name"), "arg": str(arg)[:300]})
+        elif event.get("type") == "result":
+            final = event
+    final["tool_calls"] = calls
+    return final
 
 
 def run(args) -> None:
@@ -165,7 +189,7 @@ def run(args) -> None:
     for repo, qs in questions.items():
         for qi, q in enumerate(qs):
             for rep in range(args.reps):
-                for cond in ("A", "B"):
+                for cond in args.conds.split(","):
                     jobs.append((repo, qi, q, rep, cond))
     if args.pilot:
         first = next(iter(questions))
@@ -177,20 +201,23 @@ def run(args) -> None:
             continue
         root = str(LAB / repo)
         prompt = q["prompt"] + SUFFIX.format(root=root)
-        if cond == "B":
+        if cond in ("B", "C"):
             graph = HERE / "graphs" / repo / "relationship_graph.json"
             prompt += (FLOW_DOC.format(auto=AUTO, tool=TOOL, graph=graph) if q.get("type") == "flow"
                        else TOOL_DOC.format(tool=TOOL, graph=graph))
+        if cond == "C":
+            prompt += STRONG
         cmd = build_cmd(cond, args.model, args.cap, repo)
         if args.dry_run:
             print(" ".join(cmd), "<<<", prompt.replace("\n", " | ")[:140])
             continue
         with tempfile.TemporaryDirectory() as cwd:
             proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, cwd=cwd, timeout=600)
-        out.write_text(proc.stdout or json.dumps({"is_error": True, "stderr": proc.stderr[-500:]}))
+        parsed = parse_stream(proc.stdout) if proc.stdout else {"is_error": True, "stderr": proc.stderr[-500:]}
+        out.write_text(json.dumps(parsed))
         denied = 0
         try:
-            data = json.loads(proc.stdout)
+            data = parsed
             total += float(data.get("total_cost_usd") or 0)
             denied = len(data.get("permission_denials") or [])
         except (json.JSONDecodeError, ValueError):
@@ -231,6 +258,7 @@ def score(args) -> None:
         rows[(cond, repo)].append({
             "cost": d.get("total_cost_usd") or 0, "turns": d.get("num_turns") or 0, "sec": (d.get("duration_ms") or 0) / 1000,
             "in": tokens_in, "out": u.get("output_tokens", 0), "p": p, "r": r, "f1": f1, "err": bool(d.get("is_error")), "den": bool(d.get("permission_denials")),
+            "gq": sum(1 for c in (d.get("tool_calls") or []) if "semantic_query.py" in c.get("arg", "") or "auto_context.py" in c.get("arg", "")),
         })
     if args.csv:
         cols = ["cost", "turns", "sec", "in", "out", "p", "r", "f1", "err"]
@@ -239,11 +267,11 @@ def score(args) -> None:
         for (cond, repo, q, rep), x in zip(sorted(allrows, key=lambda t: (t[0], t[1])), flat):
             lines.append(",".join([cond, repo, q, rep.lstrip("r")] + [f"{x[c]:.4g}" if isinstance(x[c], float) else str(x[c]) for c in cols]))
         Path(args.csv).write_text("\n".join(lines) + "\n")
-    print(f"{'cond':4} {'repo':6} {'n':>2} {'err':>3} {'den':>3} {'cost$ med':>9} {'turns':>6} {'in-tok med':>11} {'out-tok':>8} {'prec':>5} {'rec':>5} {'F1 med (min-max)':>18}")
+    print(f"{'cond':4} {'repo':6} {'n':>2} {'err':>3} {'den':>3} {'used':>4} {'cost$ med':>9} {'turns':>6} {'in-tok med':>11} {'out-tok':>8} {'prec':>5} {'rec':>5} {'F1 med (min-max)':>18}")
     for (cond, repo), rs in sorted(rows.items()):
         med = lambda k: statistics.median(x[k] for x in rs)
         f1s = [x["f1"] for x in rs]
-        print(f"{cond:4} {repo:6} {len(rs):>2} {sum(x['err'] for x in rs):>3} {sum(x['den'] for x in rs):>3} {med('cost'):>9.3f} {med('turns'):>6.0f} {med('in'):>11.0f} "
+        print(f"{cond:4} {repo:6} {len(rs):>2} {sum(x['err'] for x in rs):>3} {sum(x['den'] for x in rs):>3} {sum(1 for x in rs if x['gq']):>4} {med('cost'):>9.3f} {med('turns'):>6.0f} {med('in'):>11.0f} "
               f"{med('out'):>8.0f} {med('p'):>5.2f} {med('r'):>5.2f} {statistics.median(f1s):>7.2f} ({min(f1s):.2f}-{max(f1s):.2f})")
 
 
@@ -265,6 +293,7 @@ def main() -> None:
             p.add_argument("--reps", type=int, default=3)
             p.add_argument("--pilot", action="store_true")
             p.add_argument("--dry-run", action="store_true")
+            p.add_argument("--conds", default="A,B", help="A search only, B graph soft nudge, C graph strong nudge")
             p.add_argument("--stop-on-denial", action="store_true", help="stop at the first run with a denied tool call")
     a = ap.parse_args()
     {"prepare": lambda: prepare(), "prepare-flow": lambda: prepare_flow(), "run": lambda: run(a), "score": lambda: score(a)}[a.cmd]()
