@@ -74,6 +74,37 @@ python3 scripts/k8s_graphify_extract.py --live-k8s examples/k8s-sample/live-k8s.
 
 Prints `Generated Kubernetes knowledge graph: 3 nodes, 1 links.` The graph is Graphify `node_link` JSON.
 
+## Graph of graphs (many repositories)
+
+`scripts/graph_of_graphs.py` builds a small, drillable index over many per-repository graphs (Graphify `node_link` JSON). Levels are repositories, then communities, then symbols. Every view takes `--limit` and ends with the command that goes one level deeper.
+
+```bash
+python3 scripts/graph_of_graphs.py build --graphs-dir graphs --repos gson guava dagger --clones clones --out gog.json
+python3 scripts/graph_of_graphs.py overview gog.json --limit 5
+python3 scripts/graph_of_graphs.py drill gog.json gson --limit 4
+python3 scripts/graph_of_graphs.py drill gog.json gson 3
+```
+
+Cross-repository links come only from dependencies declared in package manifests (`scripts/manifest_deps.py`: Maven, Gradle, Bazel, Go, PyPI, npm, Cargo, CMake; matches only count within one ecosystem). Shared standard-library names are not links: merging graphs by node id connects repositories because they all import `os` or `java.util`. On seven real repositories (164,385 symbols) the index is 138 KB. See [research/graph-of-graphs](research/graph-of-graphs/FINDINGS.md) for the measurements and their limits.
+
+## Scoring answers
+
+`scripts/eval_score.py` scores a file-list answer (`FILE: <path>` lines) against a reference set: precision, recall, F1, and the matched, missing and extra files. Leading `./`, an absolute root, or an extra repository folder are normalised, since those are format slips and not wrong files.
+
+```bash
+python3 scripts/eval_score.py answer.txt --reference reference.json --repo gson
+python3 scripts/eval_score.py batch --questions questions.json --results runs/ --clones clones --csv runs.csv
+```
+
+## Research: graphs of graphs
+
+Experiments on real repositories, with the caveats written down: [research/graph-of-graphs/FINDINGS.md](research/graph-of-graphs/FINDINGS.md).
+
+- Merging per-repo graphs is concatenation: 0 direct cross-repo edges, and the bridges are mostly standard-library names.
+- Real dependency edges can be extracted from package manifests, but they are sparse (7 among 20 repositories).
+- A budgeted graph answer is far smaller than reading files, but its coverage is incomplete.
+- In measured trials with real model runs (54 runs, about $0.41 in total), plain search beat the graph tools on "who uses X" questions and found more of the right files on two-step flow questions in a larger repository. The graph condition was sometimes cheaper. These are small, single-model trials.
+
 ## Safety rules
 
 - Live Kubernetes extraction never lists `secrets`, `configmaps` or `tokenreviews`.
@@ -122,6 +153,6 @@ python3 -m pytest -q
 
 ## Provenance
 
-This repository is generated from [Agentic-Project-Factory](https://github.com/rb1whitney/Agentic-Project-Factory) by `scripts/export_ast_context_map.py`. File issues here; code changes land upstream and are re-exported.
+This repository started as an export of [Agentic-Project-Factory](https://github.com/rb1whitney/Agentic-Project-Factory) and is now maintained directly. Core scripts in `scripts/` are synced from the hub by hand when they change.
 
 License: Apache-2.0.
