@@ -202,7 +202,7 @@ def run(args) -> None:
         root = str(LAB / repo)
         prompt = q["prompt"] + SUFFIX.format(root=root)
         if cond in ("B", "C"):
-            graph = HERE / "graphs" / repo / "relationship_graph.json"
+            graph = HERE / "graphs" / f"{repo}{args.graph_suffix}" / "relationship_graph.json"
             prompt += (FLOW_DOC.format(auto=AUTO, tool=TOOL, graph=graph) if q.get("type") == "flow"
                        else TOOL_DOC.format(tool=TOOL, graph=graph))
         if cond == "C":
@@ -293,6 +293,7 @@ def main() -> None:
             p.add_argument("--reps", type=int, default=3)
             p.add_argument("--pilot", action="store_true")
             p.add_argument("--dry-run", action="store_true")
+            p.add_argument("--graph-suffix", default="", help="use graphs/<repo><suffix>, e.g. -v3 for a rebuilt graph")
             p.add_argument("--conds", default="A,B", help="A search only, B graph soft nudge, C graph strong nudge")
             p.add_argument("--stop-on-denial", action="store_true", help="stop at the first run with a denied tool call")
     a = ap.parse_args()

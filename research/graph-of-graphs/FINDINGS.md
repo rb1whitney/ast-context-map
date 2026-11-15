@@ -194,7 +194,7 @@ Reading:
 - The nudge made no difference. The graph was used in 9 of 9 runs in both B and C, and a graph call was the first tool call every time. The strong prompt changed neither cost nor F1. The low-adoption problem reported for other setups did not appear here (one small model, the tool described in the prompt).
 - What the agents did: they ran the one-hop `semantic_query.py` a median of 23 (B) and 22 (C) times per run, searched about once or twice, and read no source files. They never used `auto_context.py`, the ranked-list tool the prompt listed first. The search-only agents ran a median of 11 searches and 5 file reads.
 - This corrects the cause suggested for Finding 8, which assumed the agents used the ranked top-40 list. They did not. A better-supported hypothesis, not tested: hop-by-hop one-hop queries return class and method names rather than files, and the agents answered from them without reading code or searching, stopping before the two-step set was complete. (Superseded by Finding 10: the graph agents reached the graph's own recall ceiling, so the gap is in the graph.)
-- Limits: three repeats per cell, one small model, an approximate text-based reference, and plain search itself reached only 0.80 F1. Some F1 ranges overlap (A 0.57-0.86 against B 0.39-0.63). The reference cannot represent classes with short or duplicated simple names, which understates search precision (Finding 12).
+- Limits: three repeats per cell, one small model, an approximate text-based reference, and plain search itself reached only 0.80 F1. Some F1 ranges overlap (A 0.57-0.86 against B 0.39-0.63). The reference used in Findings 8 to 13 could not represent classes with short or duplicated simple names, which understated search precision; Finding 14 rescored against a name-resolving reference.
 
 ## Finding 10: the graph's own recall ceiling explains the flow result (dagger)
 
@@ -300,6 +300,40 @@ The review of Finding 10 found that 6 of the 17 non-annotation files the graph c
 - Two-hop ceiling against the text reference: MissingBindingValidator 0.58 to 0.77, the other two questions unchanged (0.66 and 0.81), since their misses are not static imports. Pooled: 62 of 84 (0.74), up from 57 (0.68), equal to the Graphify graph's 0.74. Against the part of the reference a class-file tool can confirm (RUNTIME-retained annotations only, 67 entries): 48 of 67 (0.72), up from 43.
 - These are measured against the same text reference as before, which includes mentions in imports and strings. Unlike the annotation change, this one has not been checked against a compiled-class reference (gson has few static-import calls; dagger needs Bazel to compile).
 - Still unexplained: 9 files whose name appears in the predecessor file as an ordinary type or call use, and 2 whose only mention is in a string literal.
+
+## Finding 14: a javac-style reference, and the graph the agents used was the weak one
+
+Experiment: `experiments/java_reference.py`. The text closure used in Findings 8 to 13 could only represent classes whose simple name had five or more letters and occurred in exactly one file. The new reference resolves a name the way `javac` does: through the file's single-type imports, its own package and its wildcard imports, with static imports counted when the member appears in the code. Comments, string literals and import lines are ignored, so a name that appears only there is not a dependency, and same-named classes in different packages stay separate. It is still text-based (it does not model inherited members, generated code or nested-name references), and it has not been checked against a compiler on dagger. Questions and references: `experiments/trial/questions_flow_v2.json`.
+
+| Entry class | Old reference | New reference | In both | Only old | Only new |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| MissingBindingValidator | 26 | 38 | 19 | 7 | 19 |
+| HiltViewModelFactory | 32 | 26 | 24 | 8 | 2 |
+| ActivityRetainedComponentManager | 26 | 23 | 21 | 5 | 2 |
+
+The newly counted files for the first question include `Binding`, `BindingGraph`, `BindingGraphPlugin`, `ComponentDescriptor` and `Keys`, classes the old reference could not represent.
+
+The 27 saved runs of Finding 9 against the new reference (median per condition):
+
+| Condition | Precision | Recall | F1 median (range) | F1 against the old reference |
+| :--- | ---: | ---: | :--- | ---: |
+| A: search only | 0.93 | 1.00 | 0.96 (0.83-1.00) | 0.80 |
+| B: graph, soft nudge | 0.90 | 0.48 | 0.65 (0.42-0.81) | 0.53 |
+| C: graph, strong nudge | 0.85 | 0.48 | 0.61 (0.51-0.77) | 0.52 |
+
+Two-hop recall ceiling of the mapper graph against the new reference (files reachable of files in the reference, summed over the three questions):
+
+| Mapper version | MissingBindingValidator | HiltViewModelFactory | ActivityRetainedComponentManager | Pooled |
+| :--- | ---: | ---: | ---: | ---: |
+| Before annotation types (the graph the agents used) | 27 of 38 | 9 of 26 | 11 of 23 | 47 of 87 (0.54) |
+| With annotation types | 27 of 38 | 19 of 26 | 19 of 23 | 65 of 87 (0.75) |
+| With static imports | 35 of 38 | 19 of 26 | 19 of 23 | 73 of 87 (0.84) |
+
+Reading:
+
+- The search agents were scored unfairly low before: with a reference that can represent the classes they named, search reaches precision 0.93 and recall 1.00. The earlier "false positives" were mostly real dependencies. The gap between search and the graph agents did not shrink; it widened (F1 0.96 against 0.65).
+- The graph agents worked with the weakest mapper version, whose ceiling against this reference was 0.54, and their recall (0.48) sits just under it. The improved mapper raises the ceiling to 0.84. Whether the agents reach it is untested: the flow trial needs a rerun with the rebuilt graph (`--graph-suffix -v3`) and the new questions file.
+- Limits: the reference is still not a compiler, one repository, three questions, and the mapper still keys classes by simple name, so same-named classes collapse in the graph.
 
 ## Related work
 
