@@ -293,7 +293,7 @@ def main() -> None:
             p.add_argument("--reps", type=int, default=3)
             p.add_argument("--pilot", action="store_true")
             p.add_argument("--dry-run", action="store_true")
-            p.add_argument("--graph-suffix", default="", help="use graphs/<repo><suffix>, e.g. -v3 for a rebuilt graph")
+            p.add_argument("--graph-suffix", default="", help="use graphs/<repo><suffix>; write it with an equals sign when it starts with a dash, e.g. --graph-suffix=-v3")
             p.add_argument("--conds", default="A,B", help="A search only, B graph soft nudge, C graph strong nudge")
             p.add_argument("--stop-on-denial", action="store_true", help="stop at the first run with a denied tool call")
     a = ap.parse_args()
