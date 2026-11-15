@@ -5,7 +5,7 @@
 ## Signal -> Command -> Decision
 | Signal | Command | Decision |
 | :--- | :--- | :--- |
-| A named symbol and "who uses it" | `git grep -w <Name>` | Search first. In trials plain search cost less and matched or beat the graph on recall; a capped graph answer names at most about 40 percent of the files that mention a symbol. |
+| A named symbol and "who uses it" | `git grep -w <Name>` | Search first for cost: it was cheaper in every trial. Accuracy depends on the reference. `git grep` over-counts files that only mention the name (precision 0.67 to 0.80 against compiled dependencies on gson), while the mapper graph matched compiled dependencies (precision 1.00, recall 0.88 to 1.00). Use the graph when precision matters, and verify with search. |
 | Relations search cannot show (inherits, injects, a call chain) | `semantic_query.py trace-dependencies <Name>` or `impact <Name>`, then read the files it names | Use the graph to find candidates, then read the files before answering. Agents that answered from graph output alone and read no source found 0.46 of the right files against 0.75 for search. |
 | A flow over several hops (blast radius, "how does X work end to end") | `auto_context.py "<task naming the class>" --src <dir> --top 40`, then read | About 40 percent fewer input tokens than search, but less complete on its own. Verify by reading. |
 | Which of many repositories | `graph_of_graphs.py overview`, then `drill` | Use the index, not raw graphs: seven repositories (164,385 symbols) became a 138 KB index, and one repository's whole `code_map.md` was 3.1 MB. |
@@ -19,7 +19,8 @@
 - Tell the agent to read the files the graph names. In the trial, agents made 20 to 40 one-hop queries and opened no file.
 
 ## Gotchas
-- Graph coverage plateaus: on three of four repositories about 0.4 of the files that mention a symbol.
+- Coverage measured against grep-built references plateaus near 0.4 on three of four repositories, but those references count mentions. Prefer a compiler-derived reference (`jdeps` on compiled classes); it exists only where the code compiles easily.
+- The mapper reports what it cannot see: stats include `java_annotation_types`, `java_dynamic_call_sites`, `java_files_with_dynamic_sites` and `java_parse_error_files`. Annotation types are modelled and `annotated-by` edges link annotated code to repository-declared annotations.
 - Merged graphs and whole-repository maps are too large for context. Measure the size before handing one over.
 - Results are from one small model, three repeats per cell and approximate references. The tool shape tested (one-hop, symbol-level) drove them; a file-level closure tool is untested.
 - Token figures from simulation are characters divided by 4; the trials report API cost.

@@ -213,7 +213,43 @@ Reading:
 - This replaces the hypothesis in Finding 9 that the agents answered from one-hop results and stopped early. The gap is in the graph.
 - Caveats: the reference is a text closure, so it counts files that merely mention a name; "present in the graph" means the file has at least one node; the ceiling maps edge targets to files by class name, which is approximate; one repository.
 
-What follows from it: extract annotation types and annotation-use edges; have the mapper report what it skipped (unparsed or unmodelled constructs, dynamic calls, injection markers) in each query answer; and grade any such footer against a reference that does not come from text search, for example class dependencies from compiled classes with `jdeps`, since a footer built on `git grep` would close the gap against a grep-built reference by construction. The effect of repository size (does the gap shrink on a very large monolith?) is untested.
+The mapper change that models annotation types and annotation-use edges raised the 2-hop ceilings against that text reference to 0.58, 0.66 and 0.81 and put every reference file in the graph; Finding 11 checks the change against an independent reference. What followed from it: extract annotation types and annotation-use edges; have the mapper report what it skipped (unparsed or unmodelled constructs, dynamic calls, injection markers) in each query answer; and grade any such footer against a reference that does not come from text search, for example class dependencies from compiled classes with `jdeps`, since a footer built on `git grep` would close the gap against a grep-built reference by construction. The effect of repository size (does the gap shrink on a very large monolith?) is untested.
+
+## Finding 11: an independent, compiler-derived reference (gson, jdeps)
+
+Experiment: `experiments/jdeps_reference.py` (commands to reproduce are in its docstring). The gson main sources were compiled with `javac` (three generated or external annotation types stubbed, see `experiments/jdeps/stubs`) and `jdeps -verbose:class` produced class dependencies. A source file counts as a dependent of X when one of its compiled classes depends on X. This reference does not come from text search. Everything is restricted to the compiled module (`gson/src/main/java/`), so files in other modules count against no one.
+
+Who uses a class (three symbols from the trial):
+
+| Symbol | Files that depend on it (jdeps) | Files `git grep` names | grep precision / recall | Mapper graph before the fix, precision / recall | Mapper graph after the fix, precision / recall |
+| :--- | ---: | ---: | :--- | :--- | :--- |
+| JsonPrimitive | 8 | 10 | 0.80 / 1.00 | 1.00 / 0.88 | 1.00 / 0.88 |
+| JsonParseException | 10 | 13 | 0.77 / 1.00 | 1.00 / 0.90 | 1.00 / 0.90 |
+| JsonObject | 4 | 6 | 0.67 / 1.00 | 1.00 / 1.00 | 1.00 / 1.00 |
+
+Who uses gson's own annotation types (the direct test of the annotation fix):
+
+| Annotation type | Dependent files (jdeps) | Mapper before the fix | Mapper after the fix |
+| :--- | ---: | :--- | :--- |
+| SerializedName | 2 | none found | 2 found, exact |
+| Expose | 1 | none found | 1 found, exact |
+| JsonAdapter | 2 | none found | 2 found, exact |
+| Since | 1 | none found | 1 found, exact |
+| Until | 1 | none found | 1 found, exact |
+
+The 18 saved gson trial answers rescored against both references (median F1, answers restricted to the compiled module):
+
+| Condition | F1 against the grep-built reference | F1 against the jdeps reference | Recall against jdeps |
+| :--- | ---: | ---: | ---: |
+| A: search only | 1.00 | 0.84 | 1.00 |
+| B: graph offered | 0.89 | 1.00 | 1.00 |
+
+Reading:
+
+- The grep-built reference rewards files that merely mention a name. Against compiled dependencies it has recall 1.00 but precision 0.67 to 0.80. Against it, search looks best; against the compiler-derived reference, the ranking reverses on gson. The accuracy comparison in Finding 7 therefore depended on how the reference was built. The cost comparison (turns, tokens, dollars) does not depend on the reference and is unchanged.
+- On gson the mapper graph agrees with compiled dependencies: precision 1.00 and recall 0.88 to 1.00. The coverage plateau in Finding 6 was measured against grep-built references; it was not re-measured against compiled dependencies on the other repositories.
+- The annotation fix closes a real gap: all five annotation types went from no dependents found to exactly the files jdeps lists. On dagger the corresponding gain (Finding 10) was measured only against a text reference, because compiling dagger needs Bazel. The annotation files in that reference are all class- or runtime-retained, none source-retained, so a class-file tool would see them too.
+- Limits: one module, three symbols plus five annotation types, nine runs per condition, jdeps does not see source-retention annotations or reflection, and four types are stubbed. This does not show that graph answers are more accurate in general.
 
 ## Related work
 
@@ -234,12 +270,14 @@ I read LogicLens and codebadger in full (text supplied by the author). The commu
 - `merge-graphs` concatenates; it produced no direct cross-repo edge, and its bridges are mostly standard-library names.
 - Explicit dependency extraction from manifests finds real edges but needs per-ecosystem parsing and care with name collisions between ecosystems.
 - For structural questions on the sampled repos, a budgeted graph answer is several times smaller than reading files and tens of times smaller than reading whole files, at the cost of coverage.
-- With an uncapped, symbol-level tool, an agent using the graph spent more turns and tokens than plain search on "who uses X" questions, with equal or lower accuracy (Finding 7).
+- With an uncapped, symbol-level tool, an agent using the graph spent more turns and tokens than plain search on "who uses X" questions. Accuracy depended on the reference: lower against a grep-built reference, higher against compiler-derived dependencies on gson (Findings 7 and 11).
+- On gson the mapper graph's dependents match compiled dependencies (precision 1.00, recall 0.88 to 1.00), and modelling annotation types moved five annotation types from no dependents found to an exact match (Finding 11).
 - On two-step flow questions in dagger, graph-assisted agents used about 40 percent fewer input tokens and cost 20 to 27 percent less, but found fewer of the right files (recall 0.46 against 0.75, F1 0.53 against 0.80). They used the graph in every run and a stronger nudge changed nothing (Finding 9).
 
 ## What not to claim
 
 - That the graph replaces search. Coverage plateaus near 0.4 on three of four repos, and in the trial plain search was cheaper on direct-usage questions.
+- That search is more accurate than graph answers: that comparison reversed when the reference changed from grep to compiled dependencies (Finding 11).
 - That graphs lose in general. Findings 7 and 8 tested two tool shapes on two question types with one small model.
 - Anything from Finding 8, where every graph run had denied tool calls; use Finding 9.
 - That the graph tools help on multi-hop questions: in Finding 9 they were cheaper but found fewer of the right files.
@@ -270,7 +308,7 @@ python3 experiments/simulate_cost.py gson yapf brotli magika --budget 50
 
 ## Next steps
 
-1. Fix the blind spot Finding 10 found: extract annotation type declarations and annotation-use edges in the mapper, and report skipped constructs, dynamic call sites and injection markers in each query answer. Evaluate against a reference not built from text search (class dependencies from compiled classes). Then test a file-level closure call and a footer-plus-verification condition, and the repository-size effect on a very large monolith.
+1. Report what the mapper skipped (dynamic call sites, injection markers, unmodelled constructs) in each query answer and test it as a footer condition, graded against compiled dependencies. Check Finding 6 and the flow trial against compiled references on more repositories, and test the repository-size effect on a very large monolith.
 2. Add a column for a graph-first, grep-second agent (the intended workflow).
 3. Compare `merge-graphs` and the manifest edges on a repo set that contains real dependencies (gson, libphonenumber, googletest, flatbuffers, dagger).
 4. Test whether the hierarchy answers the registry's 20 questions.

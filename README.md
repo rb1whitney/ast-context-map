@@ -112,7 +112,7 @@ Experiments on real repositories, with the caveats written down: [research/graph
 - Merging per-repo graphs is concatenation: 0 direct cross-repo edges, and the bridges are mostly standard-library names.
 - Real dependency edges can be extracted from package manifests, but they are sparse (7 among 20 repositories).
 - A budgeted graph answer is far smaller than reading files, but its coverage is incomplete.
-- In measured trials with real model runs (about 80 runs, under $1 in total), plain search was cheaper and about as accurate as graph tools on "who uses X" questions in two small repositories. On two-step flow questions in a larger repository, graph-assisted agents used about 40 percent fewer input tokens but found fewer of the right files (recall 0.46 against 0.75). A stronger prompt did not change graph use. These are small, single-model trials.
+- In measured trials with real model runs (about 90 runs, under $1 in total), plain search was cheaper than graph tools. Accuracy depended on the reference: graded against a grep-built reference search looked better, graded against compiled dependencies (jdeps on gson) graph answers scored higher. On two-step flow questions in dagger the graph tools used about 40 percent fewer input tokens but found fewer of the right files, partly because the mapper had no node for annotation types; that is now fixed and checked against compiled dependencies. These are small, single-model trials.
 
 ## Safety rules
 
