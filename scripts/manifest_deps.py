@@ -8,6 +8,7 @@ dependency that matches an identity owned by B. Read-only.
 Usage:
   python3 scripts/manifest_deps.py --root <dir containing the clones> --repos a b c > edges.json
 """
+
 import argparse
 import collections
 import json
@@ -18,11 +19,41 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ALL_REPOS = [
-    "adk-python", "ax", "brotli", "comprehensive-rust", "dagger", "filament", "flatbuffers", "googletest", "gson",
-    "guava", "gvisor", "kubernetes", "langextract", "libphonenumber", "magika", "or-tools", "skills", "styleguide",
-    "yapf", "zx",
+    "adk-python",
+    "ax",
+    "brotli",
+    "comprehensive-rust",
+    "dagger",
+    "filament",
+    "flatbuffers",
+    "googletest",
+    "gson",
+    "guava",
+    "gvisor",
+    "kubernetes",
+    "langextract",
+    "libphonenumber",
+    "magika",
+    "or-tools",
+    "skills",
+    "styleguide",
+    "yapf",
+    "zx",
 ]
-MANIFESTS = ["pom.xml", "go.mod", "pyproject.toml", "package.json", "Cargo.toml", "requirements*.txt", "MODULE.bazel", "WORKSPACE", "*.bzl", "*.gradle", "*.gradle.kts", "CMakeLists.txt"]
+MANIFESTS = [
+    "pom.xml",
+    "go.mod",
+    "pyproject.toml",
+    "package.json",
+    "Cargo.toml",
+    "requirements*.txt",
+    "MODULE.bazel",
+    "WORKSPACE",
+    "*.bzl",
+    "*.gradle",
+    "*.gradle.kts",
+    "CMakeLists.txt",
+]
 # Names that identify the same project in different build systems.
 ALIASES = {"gtest": "googletest", "gmock": "googletest", "googletest": "googletest"}
 SKIP = re.compile(r"(^|/)(third_party|vendor|node_modules|testdata|tests?_data|examples?|docs?)(/|$)")
@@ -100,7 +131,11 @@ def parse_cmake(text: str):
 
 
 def parse_requirements(text: str):
-    deps = {norm(m.group(1)) for line in text.splitlines() if (m := re.match(r"\s*([A-Za-z0-9_.\-]+)", line)) and not line.lstrip().startswith(("#", "-"))}
+    deps = {
+        norm(m.group(1))
+        for line in text.splitlines()
+        if (m := re.match(r"\s*([A-Za-z0-9_.\-]+)", line)) and not line.lstrip().startswith(("#", "-"))
+    }
     return set(), deps
 
 
@@ -127,8 +162,11 @@ def parse_cargo(text: str):
 
 
 PARSERS = {
-    "pom.xml": parse_pom, "go.mod": parse_gomod, "pyproject.toml": parse_pyproject,
-    "package.json": parse_package_json, "Cargo.toml": parse_cargo,
+    "pom.xml": parse_pom,
+    "go.mod": parse_gomod,
+    "pyproject.toml": parse_pyproject,
+    "package.json": parse_package_json,
+    "Cargo.toml": parse_cargo,
 }
 
 
@@ -144,7 +182,7 @@ def parse(path: str, text: str):
 
 
 def eco(path: str, name: str) -> str:
-    """Ecosystem of a manifest entry; matches only count within the same ecosystem (Rust googletest != C++ googletest)."""
+    """Ecosystem of a manifest entry. Matches only count within one ecosystem (Rust googletest != C++ googletest)."""
     base = path.rsplit("/", 1)[-1]
     if base == "pom.xml":
         return "maven"
@@ -196,7 +234,9 @@ def derive(root: Path, repos: list[str]) -> dict:
     result = {
         "manifest_files": files_seen,
         "identities": {r: sorted(f"{e}:{n}" for e, n in v)[:6] for r, v in own.items()},
-        "edges": [{"from": a, "to": b, "dependency": d, "evidence": f"{a}/{p}"} for (a, b), (d, p) in sorted(edges.items())],
+        "edges": [
+            {"from": a, "to": b, "dependency": d, "evidence": f"{a}/{p}"} for (a, b), (d, p) in sorted(edges.items())
+        ],
     }
     return result
 

@@ -15,8 +15,16 @@ def write_graph(path: Path, labels_by_community: dict) -> Path:
     for community, labels in labels_by_community.items():
         for label in labels:
             node_id = f"{label}_{community}"
-            nodes.append({"id": node_id, "label": label, "community": community, "file_type": "code",
-                          "source_file": f"src/{label}.java", "source_location": "L10"})
+            nodes.append(
+                {
+                    "id": node_id,
+                    "label": label,
+                    "community": community,
+                    "file_type": "code",
+                    "source_file": f"src/{label}.java",
+                    "source_location": "L10",
+                }
+            )
             if prev:
                 links.append({"source": node_id, "target": prev, "relation": "calls"})
             prev = node_id
@@ -66,11 +74,15 @@ def test_shared_names_do_not_create_cross_repo_edges(tmp_path):
 def test_cli_build_and_overview(tmp_path):
     a = write_graph(tmp_path / "a.json", {0: ["Alpha"]})
     out = tmp_path / "gog.json"
-    built = subprocess.run([sys.executable, str(SCRIPTS / "graph_of_graphs.py"), "build", "--graph", f"a={a}",
-                            "--out", str(out)], capture_output=True, text=True)
+    built = subprocess.run(
+        [sys.executable, str(SCRIPTS / "graph_of_graphs.py"), "build", "--graph", f"a={a}", "--out", str(out)],
+        capture_output=True,
+        text=True,
+    )
     assert built.returncode == 0, built.stderr
-    shown = subprocess.run([sys.executable, str(SCRIPTS / "graph_of_graphs.py"), "overview", str(out)],
-                           capture_output=True, text=True)
+    shown = subprocess.run(
+        [sys.executable, str(SCRIPTS / "graph_of_graphs.py"), "overview", str(out)], capture_output=True, text=True
+    )
     assert "1 repositories" in shown.stdout
 
 

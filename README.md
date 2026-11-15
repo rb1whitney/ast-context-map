@@ -96,6 +96,15 @@ python3 scripts/eval_score.py answer.txt --reference reference.json --repo gson
 python3 scripts/eval_score.py batch --questions questions.json --results runs/ --clones clones --csv runs.csv
 ```
 
+## When to use the graph and when to search
+
+- **Named symbol, "who uses it":** search first (`git grep -w`). It was cheaper and at least as complete in trials.
+- **Relations or a flow across hops:** query the graph for candidates, then read the files it names. Graph output alone missed about 40 percent of the right files.
+- **Many repositories:** use `graph_of_graphs.py`, not merged graphs, and take cross-repo links from manifests.
+- **Claiming a benefit:** score against an independent reference and report cost, turns, denied tool calls and whether the graph was used.
+
+Details and numbers: [references/graph-vs-search.md](references/graph-vs-search.md).
+
 ## Research: graphs of graphs
 
 Experiments on real repositories, with the caveats written down: [research/graph-of-graphs/FINDINGS.md](research/graph-of-graphs/FINDINGS.md).

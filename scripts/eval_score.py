@@ -71,12 +71,20 @@ def batch(questions: dict, results_dir: Path, root_for) -> tuple[list[dict], dic
         scored = score_text(data.get("result") or "", questions[repo][int(q[1:])]["reference"], repo, root_for(repo))
         usage = data.get("usage") or {}
         row = {
-            "condition": cond, "repo": repo, "question": q, "rep": rep.lstrip("r"),
-            "cost": data.get("total_cost_usd") or 0, "turns": data.get("num_turns") or 0,
+            "condition": cond,
+            "repo": repo,
+            "question": q,
+            "rep": rep.lstrip("r"),
+            "cost": data.get("total_cost_usd") or 0,
+            "turns": data.get("num_turns") or 0,
             "seconds": (data.get("duration_ms") or 0) / 1000,
-            "input_tokens": sum(usage.get(k, 0) for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")),
+            "input_tokens": sum(
+                usage.get(k, 0) for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
+            ),
             "output_tokens": usage.get("output_tokens", 0),
-            "precision": scored["precision"], "recall": scored["recall"], "f1": scored["f1"],
+            "precision": scored["precision"],
+            "recall": scored["recall"],
+            "f1": scored["f1"],
             "error": bool(data.get("is_error")),
             "denials": len(data.get("permission_denials") or []),
         }
@@ -86,12 +94,22 @@ def batch(questions: dict, results_dir: Path, root_for) -> tuple[list[dict], dic
 
 
 def print_table(grouped: dict) -> None:
-    print(f"{'cond':4} {'repo':8} {'n':>2} {'denied':>6} {'cost$':>7} {'turns':>5} {'in-tok':>8} {'prec':>5} {'rec':>5} {'F1 med (min-max)':>18}")
+    print(
+        f"{'cond':4} {'repo':8} {'n':>2} {'denied':>6} {'cost$':>7} {'turns':>5} {'in-tok':>8} "
+        f"{'prec':>5} {'rec':>5} {'F1 med (min-max)':>18}"
+    )
     for (cond, repo), rows in sorted(grouped.items()):
-        med = lambda k: statistics.median(r[k] for r in rows)
+
+        def med(key, rows=rows):
+            return statistics.median(r[key] for r in rows)
+
         f1 = [r["f1"] for r in rows]
-        print(f"{cond:4} {repo:8} {len(rows):>2} {sum(1 for r in rows if r['denials']):>6} {med('cost'):>7.3f} {med('turns'):>5.0f} {med('input_tokens'):>8.0f} "
-              f"{med('precision'):>5.2f} {med('recall'):>5.2f} {statistics.median(f1):>7.2f} ({min(f1):.2f}-{max(f1):.2f})")
+        denied = sum(1 for r in rows if r["denials"])
+        print(
+            f"{cond:4} {repo:8} {len(rows):>2} {denied:>6} {med('cost'):>7.3f} {med('turns'):>5.0f} "
+            f"{med('input_tokens'):>8.0f} {med('precision'):>5.2f} {med('recall'):>5.2f} "
+            f"{statistics.median(f1):>7.2f} ({min(f1):.2f}-{max(f1):.2f})"
+        )
 
 
 def main() -> None:
@@ -102,11 +120,16 @@ def main() -> None:
         ap.add_argument("--clones", default=None, help="directory holding the clones; strips absolute-root prefixes")
         ap.add_argument("--csv", default=None)
         a = ap.parse_args(sys.argv[2:])
-        runs, grouped = batch(json.loads(Path(a.questions).read_text()), Path(a.results),
-                              lambda repo: str(Path(a.clones) / repo) if a.clones else None)
+        runs, grouped = batch(
+            json.loads(Path(a.questions).read_text()),
+            Path(a.results),
+            lambda repo: str(Path(a.clones) / repo) if a.clones else None,
+        )
         if a.csv:
             cols = list(runs[0]) if runs else []
-            Path(a.csv).write_text("\n".join([",".join(cols)] + [",".join(str(r[c]) for c in cols) for r in runs]) + "\n")
+            Path(a.csv).write_text(
+                "\n".join([",".join(cols)] + [",".join(str(r[c]) for c in cols) for r in runs]) + "\n"
+            )
         print_table(grouped)
         return
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)

@@ -59,13 +59,23 @@ def summarize(name: str, graph_path: str, keep: int = STORED_COMMUNITIES) -> dic
     for cid, group in sorted(members.items(), key=lambda kv: -len(kv[1])):
         by_degree = sorted(group, key=lambda n: -degree[n["id"]])
         files = collections.Counter(n.get("source_file") for n in group if n.get("source_file"))
-        communities.append({
-            "id": cid, "size": len(group), "labels": [n["label"] for n in by_degree[:4]],
-            "files": [f for f, _ in files.most_common(3)],
-            "neighbours": [[b, w] for b, w in neighbours[cid].most_common(3)],
-        })
-    return {"name": name, "graph": str(Path(graph_path).resolve()), "nodes": len(nodes), "links": len(links),
-            "communities": len(members), "top_communities": communities[:keep]}
+        communities.append(
+            {
+                "id": cid,
+                "size": len(group),
+                "labels": [n["label"] for n in by_degree[:4]],
+                "files": [f for f, _ in files.most_common(3)],
+                "neighbours": [[b, w] for b, w in neighbours[cid].most_common(3)],
+            }
+        )
+    return {
+        "name": name,
+        "graph": str(Path(graph_path).resolve()),
+        "nodes": len(nodes),
+        "links": len(links),
+        "communities": len(members),
+        "top_communities": communities[:keep],
+    }
 
 
 def build(specs: list[tuple[str, str]], clones: str | None) -> dict:
@@ -75,21 +85,31 @@ def build(specs: list[tuple[str, str]], clones: str | None) -> dict:
         root = Path(clones)
         present = [r["name"] for r in repos if (root / r["name"] / ".git").exists()]
         derived = manifest_deps.derive(root, present)
-        out["dependencies"] = [{"from": e["from"], "to": e["to"], "dependency": e["dependency"], "evidence": e["evidence"]}
-                               for e in derived["edges"]]
+        out["dependencies"] = [
+            {"from": e["from"], "to": e["to"], "dependency": e["dependency"], "evidence": e["evidence"]}
+            for e in derived["edges"]
+        ]
     return out
 
 
 def overview(gog: dict, limit: int) -> str:
     repos = sorted(gog["repos"], key=lambda r: -r["nodes"])
     deps = gog["dependencies"]
-    lines = [f"{len(repos)} repositories, {sum(r['nodes'] for r in repos)} symbols, "
-             + (f"{len(deps)} declared dependencies" if gog["dependencies_known"] else "dependencies not computed (pass --clones)")]
+    lines = [
+        f"{len(repos)} repositories, {sum(r['nodes'] for r in repos)} symbols, "
+        + (
+            f"{len(deps)} declared dependencies"
+            if gog["dependencies_known"]
+            else "dependencies not computed (pass --clones)"
+        )
+    ]
     out_deg = collections.Counter(d["from"] for d in deps)
     in_deg = collections.Counter(d["to"] for d in deps)
     for r in repos[:limit]:
-        lines.append(f"- {r['name']}: {r['nodes']} symbols, {r['communities']} communities, "
-                     f"depends on {out_deg[r['name']]}, used by {in_deg[r['name']]}")
+        lines.append(
+            f"- {r['name']}: {r['nodes']} symbols, {r['communities']} communities, "
+            f"depends on {out_deg[r['name']]}, used by {in_deg[r['name']]}"
+        )
     for d in deps[: limit * 2]:
         lines.append(f"  {d['from']} -> {d['to']} via {d['dependency']}")
     if len(repos) > limit:
@@ -114,7 +134,9 @@ def drill(gog: dict, repo: str, community: str | None, limit: int) -> str:
             lines.append(f"- c{c['id']}: {c['size']} symbols | {', '.join(c['labels'])} | {', '.join(c['files'][:2])}")
         rest = entry["communities"] - len(shown)
         if rest > 0:
-            lines.append(f"... {rest} more communities. More: drill {repo} --limit {min(entry['communities'], limit * 2)}")
+            lines.append(
+                f"... {rest} more communities. More: drill {repo} --limit {min(entry['communities'], limit * 2)}"
+            )
         lines.append(f"Go deeper: drill {repo} <community id>")
         return "\n".join(lines)
     wanted = None if community.lower() in ("none", "null") else int(community.lstrip("c"))
@@ -126,7 +148,9 @@ def drill(gog: dict, repo: str, community: str | None, limit: int) -> str:
     group = sorted((n for n in graph["nodes"] if n.get("community") == wanted), key=lambda n: -degree[n["id"]])
     lines = [f"{repo} c{community}: {len(group)} symbols (most connected first)"]
     for n in group[:limit]:
-        lines.append(f"- {n['label']}  {n.get('source_file')}:{line_of(n.get('source_location'))}  links={degree[n['id']]}")
+        lines.append(
+            f"- {n['label']}  {n.get('source_file')}:{line_of(n.get('source_location'))}  links={degree[n['id']]}"
+        )
     if len(group) > limit:
         lines.append(f"... {len(group) - limit} more symbols. More: drill {repo} {community} --limit {len(group)}")
     lines.append("Go deeper: semantic_query.py impact <label> (needs a code_mapper graph) or read the file")
