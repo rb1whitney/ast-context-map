@@ -292,6 +292,15 @@ Search agents' false positives, MissingBindingValidator (3 runs): 23 distinct en
 
 Model and cost: every saved run used `claude-haiku-5-5` (from the run files). All 88 saved runs cost $0.825: 36 "who uses X" runs $0.181, 18 flow runs $0.230, 27 flow reruns $0.357, 5 pilot runs $0.026, and 2 interrupted rerun runs $0.031. The 81 measured runs, without pilots and the interrupted pair, cost $0.768. Interrupted runs that were not saved may have cost a little more. This excludes the cost of the assistant sessions that built and analysed the experiments.
 
+## Finding 13: resolving static imports in the mapper (dagger)
+
+The review of Finding 10 found that 6 of the 17 non-annotation files the graph could not reach were pulled in by a static import: the caller writes a call without a receiver (`toImmutableSet()`), and the class is only named in `import static ...DaggerCollectors.toImmutableSet;`. The mapper looked such calls up in the current class and its supertypes only. It now also resolves them through single-member and wildcard static imports, for classes declared in the repository; a method of the current class still takes precedence, as in Java. Same-named classes still collapse, because the mapper keys classes by simple name.
+
+- On dagger it resolved 1,704 more calls (resolved calls 9,712 to 11,416).
+- Two-hop ceiling against the text reference: MissingBindingValidator 0.58 to 0.77, the other two questions unchanged (0.66 and 0.81), since their misses are not static imports. Pooled: 62 of 84 (0.74), up from 57 (0.68), equal to the Graphify graph's 0.74. Against the part of the reference a class-file tool can confirm (RUNTIME-retained annotations only, 67 entries): 48 of 67 (0.72), up from 43.
+- These are measured against the same text reference as before, which includes mentions in imports and strings. Unlike the annotation change, this one has not been checked against a compiled-class reference (gson has few static-import calls; dagger needs Bazel to compile).
+- Still unexplained: 9 files whose name appears in the predecessor file as an ordinary type or call use, and 2 whose only mention is in a string literal.
+
 ## Related work
 
 I read LogicLens and codebadger in full (text supplied by the author). The community tools below were read as listings only. This is not a survey of the wider literature.

@@ -403,6 +403,8 @@ class GraphBuilder:
         "annotation_type_declaration",
     )
     # Reflection and dynamic-dispatch call sites a syntax graph cannot follow (textual count, reported as a gap).
+    # `import static a.b.C.member;` or `import static a.b.C.*;` -> (class path, member or *)
+    _STATIC_IMPORT = re.compile(r"\s*import\s+static\s+([\w.]+)\.(\w+|\*)\s*;")
     _DYNAMIC = re.compile(
         r"\bClass\s*\.\s*forName\s*\(|\.\s*(?:newInstance|getDeclaredMethod|getMethod|getDeclaredConstructor|invoke)\s*\("
     )
@@ -433,10 +435,14 @@ class GraphBuilder:
         root = parser.parse(src).root_node
         pkg = ""
         imports = []
+        static_imports: List[Tuple[str, str]] = []
         for c in root.children:
             if c.type == "package_declaration":
                 pkg = self._txt(c, src).replace("package", "").replace(";", "").strip()
             elif c.type == "import_declaration":
+                m = self._STATIC_IMPORT.match(self._txt(c, src))
+                if m:
+                    static_imports.append((m.group(1), m.group(2)))
                 imp = self._txt(c, src).replace("import", "").replace("static", "").replace(";", "").strip()
                 if imp:
                     imports.append(imp)
@@ -446,6 +452,7 @@ class GraphBuilder:
             "root": root,
             "package": pkg,
             "imports": imports,
+            "static_imports": static_imports,
             "has_error": bool(root.has_error),
             "dynamic_sites": len(self._DYNAMIC.findall(src.decode("utf-8", errors="ignore"))),
         }
@@ -546,6 +553,7 @@ class GraphBuilder:
                     "src": src,
                     "package": unit.get("package", ""),
                     "imports": unit.get("imports", []),
+                    "static_imports": unit.get("static_imports", []),
                     "annotations": [a for a, _ in anns],
                     "fields": {},
                     "field_injected": set(),
@@ -803,13 +811,35 @@ class GraphBuilder:
                 return found
         return None
 
+    def _static_import_target(self, info: Dict[str, Any], mname: str) -> Optional[str]:
+        """Resolve `mname()` through `import static ...Class.mname;` or a wildcard `Class.*` import.
+
+        Only classes declared in the repository resolve."""
+        for cls_path, member in info.get("static_imports", ()):
+            if member not in (mname, "*"):
+                continue
+            parts = cls_path.split(".")
+            for candidate in (".".join(parts[-2:]), parts[-1]):  # nested class first, then the simple name
+                if candidate in self.java_classes:
+                    found = self._find_method(candidate, mname)
+                    if found:
+                        return found
+        return None
+
     def _link_call(self, info: Dict[str, Any], node: Any, mid: str, locals_: Dict[str, str]) -> None:
         src = info["src"]
         name_node = node.child_by_field_name("name")
         if name_node is None:
             return
-        target_cls = self._receiver_class(node.child_by_field_name("object"), info, locals_)
-        target = self._find_method(target_cls, self._txt(name_node, src)) if target_cls else None
+        obj = node.child_by_field_name("object")
+        mname = self._txt(name_node, src)
+        target_cls = self._receiver_class(obj, info, locals_)
+        target = self._find_method(target_cls, mname) if target_cls else None
+        if target is None and obj is None:
+            # A receiver-less call that is not a method of this class or its supertypes may come from a static import.
+            target = self._static_import_target(info, mname)
+            if target:
+                self._bump("java_static_import_calls")
         if target:
             self.stats["calls_resolved"] += 1
             self._add_edge(mid, target, "calls", info["file"])
