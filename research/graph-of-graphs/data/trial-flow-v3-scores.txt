@@ -1,0 +1,4 @@
+cond repo    n err den used cost$ med  turns  in-tok med  out-tok  prec   rec   F1 med (min-max)
+A    dagger  9   0   0    0     0.015     19      219270    11341  0.82  0.75    0.80 (0.57-0.86)
+B    dagger  9   0   0    9     0.012     28      131063     9996  0.89  0.46    0.53 (0.39-0.63)
+C    dagger  9   0   0    9     0.011     25      133036     9293  0.89  0.46    0.52 (0.39-0.62)

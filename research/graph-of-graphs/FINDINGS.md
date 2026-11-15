@@ -140,7 +140,7 @@ Reading:
 - Validity check on tool denials (added after the fact): 4 of the 18 graph-condition runs had at least one denied tool call, because the agent sometimes wrote a compound shell command that the allow-rule did not match. The 14 graph runs with no denial give the same picture (cost $0.006, 5 turns, recall 0.96, F1 median 0.92, against $0.004, 2 turns and F1 0.99 for search), so this finding does not depend on the denied runs. Whether the agents used the graph tool successfully in the other runs was not logged.
 - One scoring note: an agent once answered with an extra leading repo folder (`yapf/yapf/pytree/...`). The scorer now accepts a repo-name prefix for both conditions, since the files were right.
 
-## Finding 8: measured agent trial on multi-hop flow questions (dagger)
+## Finding 8: measured agent trial on multi-hop flow questions (dagger), superseded by Finding 9
 
 Experiment: `experiments/trial/trial.py` with `questions_flow.json`, 18 real runs of the same small model, 3 repeats, total cost $0.230. Repository: dagger (2,089 source files, 722 main-source Java files). Three entry classes in different modules. Question: "list the main-source files that take part in what the class does: the classes it uses, and the classes those use (two steps), excluding tests and its own file." The reference (26, 32 and 26 files) is a text-based closure with no graph: identifier references among uniquely named main-source classes, comments stripped, depth 2. Condition A has Read, Grep and Glob. Condition B adds a prebuilt graph from this repository's own mapper, queried with `auto_context.py --top 40` and `semantic_query.py`. Stored: `data/trial-flow-runs.csv` (one row per run) and `data/trial-flow-scores.txt`.
 
@@ -159,10 +159,42 @@ Reading:
 
 - Quality did not improve with the graph. Recall and median F1 were lower for B on all three questions, and pooled F1 was 0.56 against 0.79.
 - Cost was mixed. B was cheaper on two questions (about 30 to 40 percent on the first) and more expensive on `HiltViewModelFactory` (19 turns against 9). Pooled, B used about 20 percent fewer turns and input tokens, a difference of about a third of a cent per run.
-- The hypothesis that a graph wins where search has no obvious keyword is not supported by this tool. A likely cause, not tested here: `auto_context` returns a ranked list of 40 files by personalised PageRank, not the two-step closure the question asks for. B's precision was similar or higher and its recall lower, which fits an agent that stops after a partial list.
+- The hypothesis that a graph wins where search has no obvious keyword is not supported by this tool. A likely cause, not tested here: `auto_context` returns a ranked list of 40 files by personalised PageRank, not the two-step closure the question asks for. B's precision was similar or higher and its recall lower, which fits an agent that stops after a partial list. (Superseded: the Finding 9 logs show the agents did not use `auto_context`.)
 - Plain search itself reached only 0.57 to 0.83 F1, and A's precision of 0.53 on the first question suggests the agent and the approximate reference disagree about what "takes part" means. These questions are hard and the reference is imperfect.
 - Three repeats per cell. Ranges overlap on two of the three questions, so read this as direction, not significance.
 - **Validity problem: this result is inconclusive.** All 9 graph-condition runs had at least one denied tool call (12 in total). The agents often wrote a compound shell command (`cd`, shell variables, a loop) that the allow-rule, which only matched commands starting with the script, refused. There are no clean graph runs to compare, so the lower recall cannot be separated from the agents being blocked from the tool. The conclusions above were drawn before this check and should be read as provisional. The harness now tells the agent to run one command per call and records denials per run; a rerun is needed.
+
+## Finding 9: clean rerun of the flow trial with tool-use logging (dagger)
+
+Experiment: the same three questions and references as Finding 8, rerun after fixing the denied-tool-call problem (the prompt now tells the agent to run one command per call) and with every tool call logged. 27 real runs of the same small model, 3 repeats, three conditions. A: search tools only. B: graph tools offered, with the soft prompt line "use it first; verify with search when unsure". C: B plus "before you search or read any source file, run a graph query first". Total cost $0.357. No denied tool calls. Stored: `data/trial-flow-v3-runs.csv` (one row per run, including tool-call counts) and `data/trial-flow-v3-scores.txt`.
+
+| Condition | Runs | Graph used | Cost per run | Turns | Input tokens | Precision | Recall | F1 median (range) |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :--- |
+| A search | 9 | 0 | $0.015 | 19 | 219,270 | 0.82 | 0.75 | 0.80 (0.57-0.86) |
+| B graph, soft nudge | 9 | 9 | $0.012 | 28 | 131,063 | 0.89 | 0.46 | 0.53 (0.39-0.63) |
+| C graph, strong nudge | 9 | 9 | $0.011 | 25 | 133,036 | 0.89 | 0.46 | 0.52 (0.39-0.62) |
+
+By question (medians):
+
+| Entry class | Cond | Cost | Turns | Recall | F1 | Graph calls | Grep or Glob | Reads |
+| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| MissingBindingValidator | A | $0.026 | 20 | 0.73 | 0.58 | 0 | 13 | 2 |
+| MissingBindingValidator | B | $0.014 | 43 | 0.54 | 0.50 | 41 | 2 | 0 |
+| MissingBindingValidator | C | $0.015 | 43 | 0.58 | 0.52 | 41 | 1 | 0 |
+| HiltViewModelFactory | A | $0.013 | 17 | 0.75 | 0.83 | 0 | 11 | 5 |
+| HiltViewModelFactory | B | $0.011 | 28 | 0.31 | 0.41 | 23 | 1 | 1 |
+| HiltViewModelFactory | C | $0.011 | 29 | 0.25 | 0.39 | 26 | 3 | 0 |
+| ActivityRetainedComponentManager | A | $0.015 | 25 | 0.81 | 0.81 | 0 | 8 | 17 |
+| ActivityRetainedComponentManager | B | $0.009 | 22 | 0.46 | 0.62 | 20 | 1 | 0 |
+| ActivityRetainedComponentManager | C | $0.009 | 24 | 0.46 | 0.62 | 22 | 1 | 0 |
+
+Reading:
+
+- The graph conditions cost 20 to 27 percent less and used about 40 percent fewer input tokens, but found fewer of the right files: recall 0.46 against 0.75 and F1 0.53 against 0.80. F1 was lower on all three questions and cost was lower on all three. Turns were higher on two of the three.
+- The nudge made no difference. The graph was used in 9 of 9 runs in both B and C, and a graph call was the first tool call every time. The strong prompt changed neither cost nor F1. The low-adoption problem reported for other setups did not appear here (one small model, the tool described in the prompt).
+- What the agents did: they ran the one-hop `semantic_query.py` a median of 23 (B) and 22 (C) times per run, searched about once or twice, and read no source files. They never used `auto_context.py`, the ranked-list tool the prompt listed first. The search-only agents ran a median of 11 searches and 5 file reads.
+- This corrects the cause suggested for Finding 8, which assumed the agents used the ranked top-40 list. They did not. A better-supported hypothesis, not tested: hop-by-hop one-hop queries return class and method names rather than files, and the agents answered from them without reading code or searching, stopping before the two-step set was complete.
+- Limits: three repeats per cell, one small model, an approximate text-based reference, and plain search itself reached only 0.80 F1. Some F1 ranges overlap (A 0.57-0.86 against B 0.39-0.63).
 
 ## Related work
 
@@ -184,12 +216,15 @@ I read LogicLens and codebadger in full (text supplied by the author). The commu
 - Explicit dependency extraction from manifests finds real edges but needs per-ecosystem parsing and care with name collisions between ecosystems.
 - For structural questions on the sampled repos, a budgeted graph answer is several times smaller than reading files and tens of times smaller than reading whole files, at the cost of coverage.
 - With an uncapped, symbol-level tool, an agent using the graph spent more turns and tokens than plain search on "who uses X" questions, with equal or lower accuracy (Finding 7).
+- On two-step flow questions in dagger, graph-assisted agents used about 40 percent fewer input tokens and cost 20 to 27 percent less, but found fewer of the right files (recall 0.46 against 0.75, F1 0.53 against 0.80). They used the graph in every run and a stronger nudge changed nothing (Finding 9).
 
 ## What not to claim
 
 - That the graph replaces search. Coverage plateaus near 0.4 on three of four repos, and in the trial plain search was cheaper on direct-usage questions.
 - That graphs lose in general. Findings 7 and 8 tested two tool shapes on two question types with one small model.
-- Anything about graphs on multi-hop questions from Finding 8: every graph run had denied tool calls, so it is inconclusive in both directions.
+- Anything from Finding 8, where every graph run had denied tool calls; use Finding 9.
+- That the graph tools help on multi-hop questions: in Finding 9 they were cheaper but found fewer of the right files.
+- That a stronger prompt or hook is needed for agents to use the graph. Adoption was 9 of 9 even with the soft prompt in this setup.
 - That a hierarchy answers questions well. Only its size was measured.
 - Absolute token or dollar figures. The token count is characters divided by 4, and the baseline agent is a simulated policy, not measured agent traces.
 - Results for the repository's own mapper. All graphs here come from the external Graphify.
@@ -215,7 +250,7 @@ python3 experiments/simulate_cost.py gson yapf brotli magika --budget 50
 
 ## Next steps
 
-1. Rerun the flow trial with the one-command instruction (check that the `den` column is 0 for the graph condition), into a new results directory. Then give the tool the shape the question asks for: a traversal with `--depth` and `--limit` that returns the two-step closure, and try a graph-first, search-second prompt.
+1. Give the graph tool the shape the question asks for: one call that returns the file-level two-step closure (`--depth`, `--files`, `--limit`, with a "more available" footer), keep a verification step, and rerun the flow trial. The agents here made 20 to 40 one-hop queries and read no source, so also test a prompt that requires reading the files the graph names before answering.
 2. Add a column for a graph-first, grep-second agent (the intended workflow).
 3. Compare `merge-graphs` and the manifest edges on a repo set that contains real dependencies (gson, libphonenumber, googletest, flatbuffers, dagger).
 4. Test whether the hierarchy answers the registry's 20 questions.
