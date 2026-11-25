@@ -179,6 +179,8 @@ def run(args) -> None:
     jobs = [(qi, rep, c) for qi in range(len(questions)) for rep in range(args.reps) for c in args.conds.split(",")]
     if args.pilot:
         jobs = [j for j in jobs if j[0] == 0 and j[1] == 0 and j[2] == "G2"]
+    if args.offset:  # start part-way through the list so parallel workers do not begin on the same run
+        jobs = jobs[args.offset :] + jobs[: args.offset]
     baseline = clone_state()
     if baseline.strip():
         print(f"note: {LAB / REPO} already has changes, used as the baseline: {baseline.strip()[:120]!r}")
@@ -272,6 +274,7 @@ def main() -> None:
             p.add_argument("--reps", type=int, default=3)
             p.add_argument("--conds", default=",".join(CONDS))
             p.add_argument("--pilot", action="store_true")
+            p.add_argument("--offset", type=int, default=0, help="rotate the job list; start parallel workers at different offsets")
             p.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
     {"run": run, "score": score}[a.cmd](a)
