@@ -129,12 +129,14 @@ TOOL_MAP = {
 
 def parse_events(stdout: str) -> dict:
     """agy stream-json to the shape nudge_trial.summarize expects."""
-    calls, texts, result = [], {}, {}
+    calls, texts, result, model = [], {}, {}, ""
     for line in stdout.splitlines():
         try:
             event = json.loads(line)
         except json.JSONDecodeError:
             continue
+        if event.get("event") == "init":
+            model = (event.get("init") or {}).get("model", "")
         step = event.get("step_update") or {}
         if step.get("step_type") == "tool" and step.get("state") == "DONE":
             params = (step.get("tool_info") or {}).get("parameters") or {}
@@ -148,6 +150,7 @@ def parse_events(stdout: str) -> dict:
     final = with_files[-1] if with_files else (result.get("response") or "")
     usage = result.get("usage") or {}
     return {
+        "model": model,
         "result": final,
         "tool_calls": calls,
         "is_error": result.get("status") not in (None, "SUCCESS") or not result,
@@ -230,8 +233,10 @@ def score(args) -> None:
         s = nt.summarize(d, refs[int(q[1:])])
         s["tokens"] = d.get("total_tokens") or 0
         s["denies"] = sum(1 for x in d.get("hook_log", []) if x.split("\t")[2:3] == [DENY_RE])
+        s["model"] = d.get("model", "")
         s["invalid"] = bool(d.get("is_error")) or not (d.get("result") and "FILE:" in d["result"])
         rows[cond].append(s)
+    print("models in results:", sorted({x["model"] for v in rows.values() for x in v}))
     print(f"{'cond':4} {'n':>2} {'inval':>5} {'graph':>5} {'first':>5} {'denies':>6} {'srch+':>5} {'read+':>5} {'flag/miss':>9} {'overconf':>8} {'tokens':>8} {'prec':>5} {'rec':>5} {'F1 med (min-max)':>18}")  # fmt: skip
     for cond in CONDS:
         allr = rows.get(cond, [])
@@ -255,7 +260,7 @@ def main() -> None:
         p.add_argument("--results-dir", default=str(HERE / "results-agy"))
         p.add_argument("--questions", default=str(HERE / "questions_flow_v2.json"))
         if name == "run":
-            p.add_argument("--model", default="gemini-3.8-flash-low")
+            p.add_argument("--model", default="gemini-4-hydrogen-medium")
             p.add_argument("--timeout", default="6m", help="agy --print-timeout, with a unit")
             p.add_argument("--hard-timeout", type=int, default=480, help="seconds before the process is killed")
             p.add_argument(
