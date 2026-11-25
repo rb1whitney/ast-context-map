@@ -93,7 +93,7 @@ def build_cmd(model: str, cap: float) -> list[str]:
     return [
         "claude", "-p", "--model", model, "--output-format", "stream-json", "--verbose", "--max-budget-usd", str(cap),
         "--no-session-persistence", "--permission-mode", "dontAsk", "--add-dir", str(LAB / REPO),
-        "--tools", "Read,Grep,Glob,Bash", "--allowedTools", "Read", "Grep", "Glob", "Bash(graphify:*)",
+        "--tools", "Read,Grep,Glob,Bash", "--allowedTools", "Read", "Grep", "Glob", "Bash(graphify:*)", "Bash(ls:*)",
     ]  # fmt: skip
 
 
