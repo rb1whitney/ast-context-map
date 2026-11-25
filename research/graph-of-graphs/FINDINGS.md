@@ -30,6 +30,7 @@ For agents, a graph tool changes the trade between cost and completeness, and th
 | 16 | Rebuilt graph | Current |
 | 17 | Closure trial | Current |
 | 18 | Build time against Graphify | Current; indicative, not a controlled benchmark |
+| 19 | Graphify nudge probe and planned test | Probe current; experiment planned, not run |
 
 ## Runs and cost
 
@@ -484,6 +485,53 @@ The mapper's build time was measured on four of the 20 repositories with `/usr/b
 - On guava the mapper's own graph is 24 MB (29,275 nodes, 52,336 edges) and its `code_map.md` is 7.7 MB, against Graphify's 128.6 MB graph. Both are too large to hand to an agent without a budget. The mapper recorded 13 files with parse errors, 463 reflection call sites in 162 files, 7,173 resolved static-import calls and 140 annotation types on guava.
 - Limits: one run per tool and repository, different sessions, different graph contents, Graphify's parallelism (16 workers) and the mapper's single process not equalised.
 
+## Finding 19: what Graphify's installed nudge does, and a pre-registered test of whether nudges matter (dagger flow, planned, not run)
+
+Status: the probe below was run; the agent experiment has not been run. Nothing here is a result about agent behavior.
+
+### Probe: what `graphify claude install` writes (Graphify 0.9.86)
+
+Run in a new empty git repository, then each hook fed sample tool payloads on stdin. No model calls.
+
+- `CLAUDE.md` section: for codebase questions run `graphify query` first when `graphify-out/graph.json` exists; use `graphify path` and `graphify explain`; run `graphify update .` after changing code.
+- `.claude/settings.json`: two `PreToolUse` hooks, `Bash|Grep` running `graphify hook-guard search` and `Read|Glob` running `graphify hook-guard read`.
+- Search hook output with a graph present and a search-like Bash command: `additionalContext` reading "MANDATORY: graphify-out/graph.json exists. You MUST run `graphify query "<question>"` before grepping raw files. Only grep after graphify has oriented you, or to modify/debug specific lines." It does not deny the call.
+- Silent (no output, exit 0) when no graph exists, for a non-search command (`ls`), and for the one `Read` payload tried; what triggers the `Read|Glob` hook was not determined.
+- The message says nothing about what the graph misses or that its answers need verifying.
+
+Not checked: whether hooks fire under `claude -p` with project settings, and whether the hook text changes behavior. Earlier trials (Findings 9, 16, 17) put the nudge in the task prompt, so the hook has never been tested, and no condition has left the graph present with no mention at all.
+
+### Hypotheses
+
+1. With the graph in the repository and no mention anywhere, agents mostly do not use it.
+2. The installer's `CLAUDE.md` section and hook raise graph use. A soft prompt already gave 9 of 9 graph use (Finding 9), so the increase may be small.
+3. The "MANDATORY" wording raises confidence in graph answers without raising recall, so verification stays rare.
+4. A calibration rule (the graph lists candidates and misses annotation and reflection uses; verify with one search; end with an `UNVERIFIED:` line) raises verification and the share of misses the agent flags.
+
+### Design
+
+Questions: the three dagger flow questions in `questions_flow_v2.json` (name-resolving key, Finding 14) plus one blind-spot question with a planted dependency the graph cannot see, written before any run. Three repeats per cell. Model `claude-haiku-5-5`. Graph: Graphify's own graph for dagger, since the nudge belongs to Graphify.
+
+| Condition | Agent receives |
+| :--- | :--- |
+| N0 | graph in the repository, no mention anywhere |
+| N1 | installer's `CLAUDE.md` section only |
+| N2 | installer's hook only |
+| N3 | both (the installer default) |
+| N4 | N3 plus the calibration rule |
+
+Measured per run: whether and when the graph was queried, searches and file reads after it, F1 against the key, cost, turns, whether the hook fired (logged), and calibration: for answers that miss reference files, whether the agent flagged uncertainty. Report denied calls and runs where the hook did not fire as invalid, not as zeros.
+
+Planned size: 5 conditions, 4 questions, 3 repeats, 60 runs. Prior graph runs cost $0.013 to $0.04 each, so $0.8 to $2.4 is an estimate, not a measurement. The user launches the paid run; each run has a dollar cap and the trial stops at a total cap.
+
+Pre-registered readings, fixed before running:
+- Hypothesis 1 holds if N0 queries the graph in fewer than half the runs.
+- Hypothesis 3 holds if N3 recall is not higher than N0 or N1 and N3 searches after the graph in fewer runs than N4.
+- Hypothesis 4 holds if N4 flags uncertainty in more than half of the answers that miss files and N3 in fewer than a quarter.
+- Antigravity is out of scope. Graphify installs differently there and this test uses Claude Code only.
+
+What this finding does not support yet: any claim that the hook should be installed, or that telling an agent about a graph is required.
+
 ## Related work
 
 I read LogicLens and codebadger in full (text supplied by the author). The community tools below were read as listings only. This is not a survey of the wider literature.
@@ -563,7 +611,7 @@ Conditions: A search only, B graph with a soft nudge, C graph with a strong nudg
 
 ## Next steps
 
-1. Put a flagged blind spot in front of the agents: a task whose closure contains reflection-wired or framework-wired files, a planted dependency the build cannot catch, and the `UNVERIFIED:` line. This is the test of whether the footer makes agents verify.
+1. Run the nudge test pre-registered in Finding 19 (it includes a blind-spot question). Earlier plan: put a flagged blind spot in front of the agents: a task whose closure contains reflection-wired or framework-wired files, a planted dependency the build cannot catch, and the `UNVERIFIED:` line. This is the test of whether the footer makes agents verify.
 2. Test the effect of repository size on a very large monolith, where search returns long match lists.
 3. Add Python class-usage edges: the yapf graph named no dependents.
 4. Key classes by package-qualified name so same-named classes stop collapsing in the mapper.

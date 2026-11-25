@@ -6,7 +6,7 @@ Experiments on what happens when you combine per-repository code graphs, and on 
 
 | Path | Contents |
 | :--- | :--- |
-| `FINDINGS.md` | Eighteen findings with a status table, runs and cost, answer keys, claim lists, limits |
+| `FINDINGS.md` | Nineteen findings (the last is a planned test) with a status table, runs and cost, answer keys, claim lists, limits |
 | `experiments/merge_stats.py` | What `graphify merge-graphs` produces (size, cross-repo edges, bridge nodes) |
 | `experiments/manifest_deps.py` | Cross-repo dependency edges from package manifests |
 | `experiments/simulate_cost.py` | Simulated context cost of a search agent against a graph agent (no model) |
