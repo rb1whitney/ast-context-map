@@ -31,7 +31,7 @@ For agents, a graph tool changes the trade between cost and completeness, and th
 | 17 | Closure trial | Current |
 | 18 | Build time against Graphify | Current; indicative, not a controlled benchmark |
 | 19 | Graphify nudge probe and nudge trials (Claude Code and Antigravity) | Current; graph use depends on the nudge, recall did not change, calibration not testable on these questions |
-| 20 | Map versus search by search noise, with a noise-gated hook (kubernetes) | Key, questions, hook and harness built and tested; trial planned, not run |
+| 20 | Map versus search by search noise, with a noise-gated hook (kubernetes) | Current; F1 1.00 in every cell, so the map changed cost, not accuracy |
 
 ## Runs and cost
 
@@ -43,9 +43,11 @@ For agents, a graph tool changes the trade between cost and completeness, and th
 | dagger flow, rebuilt graph, A and B | 16 | 18 | $0.286 | `data/trial-flow-v4-runs.csv` |
 | dagger flow, closure, D | 17 | 9 | $0.034 | `data/trial-flow-v5-runs.csv` |
 | dagger flow, nudge test N0 to N4 (Claude Code) | 19 | 45 | $0.764 | `data/trial-nudge-claude-runs.csv` |
-| pilots and interrupted runs | | 15 | $0.235 | not published |
-| **Total (Claude)** | | **168** | **$2.087** | |
+| kubernetes import questions, S, M, H, H+ (Claude Code) | 20 | 64 | $0.525 | `data/trial-cross-claude-runs.csv` |
+| pilots and interrupted runs | | 16 | $0.243 | not published |
+| **Total (Claude)** | | **233** | **$2.612** | |
 | dagger flow, nudge test G0 to G4 (Antigravity, `gemini-4-hydrogen-medium`) | 19 | 45 | not reported (about 9.0 million tokens) | `data/trial-nudge-agy-scores.txt` |
+| kubernetes import questions (Antigravity, same model) | 20 | 64 | not reported (4.96 million tokens) | `data/trial-cross-agy-runs.csv` |
 
 Claude runs used `claude-haiku-5-5` (from the run files). The Antigravity CLI reports tokens, not dollars, and its pilot (one run, 324,000 tokens) is not in the table. The cost excludes the assistant sessions that built and analysed the experiments and any unsaved interrupted runs.
 
@@ -470,7 +472,7 @@ Reading:
 - Whether that trade is good enough depends on the cost of a miss. The F1 bar was missed by 0.01, within the run-to-run noise seen for search (0.96 against 0.94).
 - Limits: nine runs but effectively three distinct outcomes, comparison runs made earlier, D's prompt names `closure` where B's does not, one repository, one small model, a text-based reference.
 
-Cost of the Claude runs, including the nudge test: 168 saved runs, $2.09 (the 115 earlier runs cost $1.15).
+Cost of the Claude runs, including Findings 19 and 20: 233 saved runs, $2.61 (the 115 earlier runs cost $1.15).
 
 ## Finding 18: build time of this repository's mapper against Graphify, and what each builds
 
@@ -581,9 +583,9 @@ Conditions: G0 graph present, no mention; G1 the rule `graphify antigravity inst
 What this finding supports: with Claude Code's installer defaults, the combination of `CLAUDE.md` section and hook moved graph use from none to every run; with Antigravity only an enforcing PreToolUse hook did. What it does not support: that using the graph improves answers (it did not here), that "MANDATORY" wording or the calibration rule changes verification, or that any nudge makes agents report the graph's blind spots.
 
 
-## Finding 20: when does a map beat search, and can a hook decide? (kubernetes, planned, not run)
+## Finding 20: when does a map beat search, and can a hook decide? (kubernetes)
 
-Status: the answer key, questions, hook and harness were built and tested without model calls. Nothing here is a result about agent behavior.
+Status: the key, questions, hook and harness were built and tested, then the pre-registered trial was run on Claude Code and Antigravity. Results follow the design.
 
 The question behind it: Findings 14 to 19 show that agents rarely use a graph unprompted and that plain search was as accurate as the graph at dagger's size. A map may pay off only where search is too noisy to read. The workflow assumed here is: grep first, and only if grep returns too much, orient with the map, then search inside what it names. The map is a guide to the search, not the answer.
 
@@ -613,7 +615,34 @@ Pre-registered readings, fixed before running:
 - **H+ is better than H** only if its median F1 is not lower and it reads or searches inside the mapped files in more runs.
 - If none of these hold, the result is that plain search is as good here, and it is reported that way.
 
-Known limits, stated before running: the graph is exact for this question, which favors the map's accuracy and says nothing about questions the mapper models less well (Findings 10 to 14); import questions are one question type; two repeats per cell leave very few outcomes per group; kubernetes is one Go repository; for Antigravity condition S cannot stop the agent from running the map command if it finds it; user-level instructions load in every run, equally.
+Known limits, stated before running (results below): the graph is exact for this question, which favors the map's accuracy and says nothing about questions the mapper models less well (Findings 10 to 14); import questions are one question type; two repeats per cell leave very few outcomes per group; kubernetes is one Go repository; for Antigravity condition S cannot stop the agent from running the map command if it finds it; user-level instructions load in every run, equally.
+
+### Results (64 Claude Code runs and 64 Antigravity runs, all valid)
+
+Per-run rows: `data/trial-cross-claude-runs.csv` (cost in USD) and `data/trial-cross-agy-runs.csv` (tokens); tables in `data/trial-cross-*-scores.txt`. Claude Code on `haiku`, $0.525 for the 64 runs. Antigravity on `gemini-4-hydrogen-medium`, 4.96 million tokens, no dollar figure. No run errored, none was invalid, and the hook logged decisions in every H and H+ run. Eight runs per condition and noise group (4 questions, 2 repeats). Medians:
+
+| Harness | Noise | S | M | H | H+ |
+| :--- | :--- | ---: | ---: | ---: | ---: |
+| Claude, cost per run | low | $0.0031 | $0.0037 | $0.0037 | $0.0036 |
+| Claude, cost per run | high | $0.0132 | $0.0095 | $0.0136 | $0.0140 |
+| Claude, runs that used the map | low / high | 0 / 0 | 8 / 8 | 0 / 5 | 0 / 6 |
+| Claude, runs with a gate denial | high | 0 | 0 | 8 | 8 |
+| Antigravity, tokens per run | low | 43,447 | 43,135 | 30,179 | 37,007 |
+| Antigravity, tokens per run | high | 77,959 | 111,339 | 115,950 | 131,693 |
+| Antigravity, runs that used the map | low / high | 0 / 0 | 8 / 8 | 0 / 8 | 0 / 8 |
+| Antigravity, runs with a gate denial | high | 0 | 0 | 8 | 8 |
+
+Accuracy did not vary: median F1 was 1.00 in every cell on both harnesses (lowest single run 0.99). Mean turns for Claude on high-noise questions were 5.1 for S, 4.8 for M, 7.2 for H and 11.8 for H+.
+
+Against the pre-registered readings:
+
+- **The map earns its place: yes on Claude through M, no on Antigravity.** On high-noise questions Claude's M cost $0.0095 against $0.0132 for S (28 percent lower, about $0.004 a run) at equal F1; H did not (it cost $0.0136). Antigravity's M and H cost more than S (111,339 and 115,950 tokens against 77,959).
+- **The gate is sound: yes on Antigravity, no on Claude.** On both harnesses the hook stayed silent on all low-noise searches (0 of 8 map uses) and denied all 8 high-noise H runs; the map was then used in 5 of 8 Claude runs and 8 of 8 Antigravity runs. The cost bar failed on Claude: H on low-noise questions cost $0.0037 against $0.0031 for S, 20 percent more (an absolute difference of $0.0006); on Antigravity it was 31 percent lower (30,179 against 43,447 tokens).
+- **H+ is better than H: partly.** F1 was not lower. On Claude, 6 of 8 H+ runs read files on high-noise questions against 2 of 8 for H, at a higher mean cost ($0.0159 against $0.0128) and more turns. On Antigravity, 3 of 8 H+ runs read files against 4 of 8 for H, and tokens were higher (131,693 against 115,950). "Read files" is a proxy for "searched inside the mapped files"; the harness did not check that the files read were the ones the map listed.
+
+What the result says: on this question the map did not make answers better. A single `grep -l` for the import path already returned the answer, even at 587 matching files, because the tools return file lists and not file contents. Plain search was as accurate as the exact graph, at a cost within about $0.004 a run (Claude) and between 28 percent lower and 43 percent higher (Antigravity) depending on the condition, so the noise level did not make the map necessary. This supports the view that a map is useful only where search output is too large or too ambiguous to use, and that at kubernetes' scale on this question it is not. The hook did what it was built to do (silent when search is quiet, redirecting when it is noisy), but redirecting did not save anything on Antigravity.
+
+Limits specific to these results: F1 reached a ceiling of 1.00 for every condition, so nothing here could show the map helping accuracy or search failing; the noisiest question matched 587 files and the answer was 172 directories, still readable, so a query whose raw hits are in the many thousands, or an ambiguous name, was not tested; the second repeat of each run was near-identical to the first, so the 64 runs per harness hold about 32 outcomes; the Antigravity S condition could not be stopped from finding the map command; Claude's agents could also search with `grep` through Bash because user-level permissions allow it, which is why the gate fired on Bash and Grep both. The two harnesses are not compared with each other.
 
 ## Related work
 
@@ -638,11 +667,14 @@ I read LogicLens and codebadger in full (text supplied by the author). The commu
 - On dagger flow questions, scored against the name-resolving key: search F1 0.94 to 0.96; graph agents with the first mapper 0.65 (recall 0.48); with the rebuilt mapper 0.88 (recall 0.78) at the same cost and more turns; with the `closure` query and footer 0.84 (recall 0.83) at $0.004 a run, 2 turns and 26,662 input tokens, against $0.013, 20 turns and 219,125 for search (Findings 14, 16, 17).
 - In every logged run (Findings 9, 16, 17) the agents used the graph, a soft prompt was as effective as a strong one, and they mostly did not verify: a median of one or two searches and no file reads.
 - The mapper built its graph 7.6 to 17 times faster than Graphify's `extract --code-only` on four repositories, with a smaller graph (Finding 18).
+- On kubernetes "which packages import P" questions (exact graph, key and graph agree), every condition reached F1 1.00 on both agent harnesses. The map lowered Claude's median cost on high-noise questions by 28 percent when named in the prompt ($0.0095 against $0.0132) and raised Antigravity's token use (111,339 against 77,959); a hook that redirects only noisy searches stayed silent on quiet ones on both harnesses and saved nothing on Antigravity (Finding 20).
 - Graph use depends on the nudge. In Claude Code, with the graph present and no mention, 0 of 9 runs used it; the installer's `CLAUDE.md` section gave 5 of 9, its hook 9 of 9 and both together 9 of 9 (graph first in 7). In Antigravity the installer's rule gave 0 of 9 and a PreToolUse gate 9 of 9. Answer quality did not change: median F1 0.94 to 0.96 across the Claude conditions and recall 1.00 across the Antigravity ones (Finding 19).
 - On gson and yapf "who uses X" questions with the class named, plain search was cheaper: 2 turns against 5 and about 2.7 times fewer input tokens (Finding 7).
 
 ## What not to claim
 
+- That a map is needed, or helps, at kubernetes scale: on import questions plain search matched an exact graph. Not tested: queries with thousands of raw hits, ambiguous names, or questions the mapper models less well (Finding 20).
+- That the noise-gated hook saves cost: it did on neither harness's high-noise questions, and on Claude's low-noise ones it cost 20 percent more (Finding 20).
 - That the graph replaces search or matches its quality. The closure query scored F1 0.84 against 0.94, and one pre-registered bar (F1 0.85) was missed by 0.01.
 - That graphs lose in general, or that they win. The trials cover one small model, two question types, three flow questions and one large repository.
 - That search is more accurate than graph answers. That comparison reversed when the key changed from grep to compiled dependencies (Finding 11).
@@ -704,17 +736,26 @@ python3 experiments/trial/agy_nudge_trial.py run --dry-run
 python3 experiments/trial/agy_nudge_trial.py run --pilot
 python3 experiments/trial/agy_nudge_trial.py run --reps 3 --model gemini-4-hydrogen-medium
 python3 experiments/trial/agy_nudge_trial.py score
+
+# crossover test (Finding 20): needs the kubernetes clone (a native-filesystem copy is much faster) and its package graph
+python3 experiments/go_reference.py --root <kubernetes clone> --graph <graph.json> --package pkg/features
+python3 experiments/trial/crossover_trial.py run --harness claude --dry-run
+python3 experiments/trial/crossover_trial.py run --harness claude --pilot
+python3 experiments/trial/crossover_trial.py run --harness claude --reps 2
+python3 experiments/trial/crossover_trial.py run --harness agy --reps 2
+python3 experiments/trial/crossover_trial.py score --harness claude
 ```
 
 Conditions: A search only, B graph with a soft nudge, C graph with a strong nudge, D graph with `closure` and the coverage footer. `--uncertainty` adds an `UNVERIFIED:` line to the answer format.
 
 ## Next steps
 
-1. Put a flagged blind spot in front of the agents (the nudge test of Finding 19 ran without it and could not test calibration): a task whose closure contains reflection-wired or framework-wired files, a planted dependency the build cannot catch, and the `UNVERIFIED:` line. Use harder questions so that recall is below 1.00 and there is something to flag.
-2. Test the effect of repository size on a very large monolith, where search returns long match lists.
-3. Add Python class-usage edges: the yapf graph named no dependents.
-4. Key classes by package-qualified name so same-named classes stop collapsing in the mapper.
-5. Check the name-resolving key and the static-import change against a compiler on a second repository.
-6. Compare `merge-graphs` and the manifest edges on a set of repositories that contains real dependencies, and test whether the hierarchy answers questions.
-7. Add a dependency scope tag (runtime, test, benchmark) to the manifest edges.
-8. Try a graph-first, search-second prompt variant.
+1. Test where search genuinely fails: queries with thousands of raw hits or an ambiguous name, and questions the graph answers less exactly (Finding 20 reached a ceiling of F1 1.00 everywhere).
+2. Put a flagged blind spot in front of the agents (the nudge test of Finding 19 ran without it and could not test calibration): a task whose closure contains reflection-wired or framework-wired files, a planted dependency the build cannot catch, and the `UNVERIFIED:` line. Use harder questions so that recall is below 1.00 and there is something to flag.
+3. Test the effect of repository size on a very large monolith, where search returns long match lists.
+4. Add Python class-usage edges: the yapf graph named no dependents.
+5. Key classes by package-qualified name so same-named classes stop collapsing in the mapper.
+6. Check the name-resolving key and the static-import change against a compiler on a second repository.
+7. Compare `merge-graphs` and the manifest edges on a set of repositories that contains real dependencies, and test whether the hierarchy answers questions.
+8. Add a dependency scope tag (runtime, test, benchmark) to the manifest edges.
+9. Try a graph-first, search-second prompt variant.

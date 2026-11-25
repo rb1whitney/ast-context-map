@@ -6,7 +6,7 @@ Experiments on what happens when you combine per-repository code graphs, and on 
 
 | Path | Contents |
 | :--- | :--- |
-| `FINDINGS.md` | Twenty findings (the last is a planned test) with a status table, runs and cost, answer keys, claim lists, limits |
+| `FINDINGS.md` | Twenty findings with a status table, runs and cost, answer keys, claim lists, limits |
 | `experiments/merge_stats.py` | What `graphify merge-graphs` produces (size, cross-repo edges, bridge nodes) |
 | `experiments/manifest_deps.py` | Cross-repo dependency edges from package manifests |
 | `experiments/simulate_cost.py` | Simulated context cost of a search agent against a graph agent (no model) |
@@ -49,7 +49,7 @@ python3 ../../scripts/code_mapper.py gson --force --out-dir experiments/trial/gr
 python3 experiments/trial/trial.py run --pilot --dry-run   # prints the commands without running them
 ```
 
-Each run has a hard dollar cap (`--cap`) and the whole trial stops at `--total-cap`. Every trial used the smallest model; all 168 saved Claude runs cost $2.09 in total (plus 45 Antigravity runs, reported in tokens). The full reproduce list, including the answer-key scripts and the closure trial, is at the end of [FINDINGS.md](FINDINGS.md).
+Each run has a hard dollar cap (`--cap`) and the whole trial stops at `--total-cap`. Every trial used the smallest model; all 233 saved Claude runs cost $2.61 in total (plus 109 Antigravity runs, reported in tokens). The full reproduce list, including the answer-key scripts and the closure trial, is at the end of [FINDINGS.md](FINDINGS.md).
 
 ## Caveats
 
