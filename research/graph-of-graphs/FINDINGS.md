@@ -510,7 +510,7 @@ Not checked: whether hooks fire under `claude -p` with project settings, and whe
 
 ### Design
 
-Questions: the three dagger flow questions in `questions_flow_v2.json` (name-resolving key, Finding 14) plus one blind-spot question with a planted dependency the graph cannot see, written before any run. Three repeats per cell. Model `claude-haiku-5-5`. Graph: Graphify's own graph for dagger, since the nudge belongs to Graphify.
+Questions: the three dagger flow questions in `questions_flow_v2.json` (name-resolving key, Finding 14). A fourth, blind-spot question with a planted dependency was dropped from this version: it needs a modified copy of the repository, and the graph already misses reference files naturally (its ceiling is 0.84, Finding 14), so calibration can be measured on real misses. Three repeats per cell. Model `claude-haiku-5-5`. Graph: Graphify's own graph for dagger, since the nudge belongs to Graphify.
 
 | Condition | Agent receives |
 | :--- | :--- |
@@ -522,7 +522,9 @@ Questions: the three dagger flow questions in `questions_flow_v2.json` (name-res
 
 Measured per run: whether and when the graph was queried, searches and file reads after it, F1 against the key, cost, turns, whether the hook fired (logged), and calibration: for answers that miss reference files, whether the agent flagged uncertainty. Report denied calls and runs where the hook did not fire as invalid, not as zeros.
 
-Planned size: 5 conditions, 4 questions, 3 repeats, 60 runs. Prior graph runs cost $0.013 to $0.04 each, so $0.8 to $2.4 is an estimate, not a measurement. The user launches the paid run; each run has a dollar cap and the trial stops at a total cap.
+Planned size: 5 conditions, 3 questions, 3 repeats, 45 runs. Prior graph runs cost $0.013 to $0.04 each, so $0.6 to $1.8 is an estimate, not a measurement. The user launches the paid run; each run has a dollar cap and the trial stops at a total cap.
+
+Harness: `experiments/trial/nudge_trial.py`. Each run gets a new sandbox directory that holds only what the condition gives the agent. The sandbox files come from running the real `graphify claude install` and then removing the parts a condition does not get, so the product is tested and not a copy of its text. The hooks are wrapped in a logger that records each firing, and a hook-condition run with no firing is scored as invalid. All conditions use the same answer format, including the `UNVERIFIED:` line, and the same allow-list (`Read`, `Grep`, `Glob`, `graphify` through Bash). Checked without a model call: the five sandboxes hold the intended files, the wrapper passes the guard's output through and logs it, and `graphify query` runs offline on the dagger graph (21,980 nodes; its output is cut at about 2,000 tokens and says so). Unit tests cover the scoring (`tests/test_nudge_trial.py`).
 
 Pre-registered readings, fixed before running:
 - Hypothesis 1 holds if N0 queries the graph in fewer than half the runs.
@@ -605,6 +607,12 @@ python3 ../../scripts/semantic_query.py --graph experiments/trial/graphs/dagger-
 # agent trials (paid; each run is capped, and the trial stops at --total-cap)
 python3 experiments/trial/trial.py run --reps 3 --conds A,B,D --cap 0.20 --total-cap 3.0 --stop-on-denial --graph-suffix=-v4 --questions experiments/trial/questions_flow_v2.json --results-dir experiments/trial/results-flow-v5
 python3 experiments/trial/trial.py score --questions experiments/trial/questions_flow_v2.json --results-dir experiments/trial/results-flow-v5
+
+# nudge test (Finding 19); run from the folder holding the clones and _graphs/
+python3 experiments/trial/nudge_trial.py run --dry-run
+python3 experiments/trial/nudge_trial.py run --pilot        # one paid run to confirm the hook fires
+python3 experiments/trial/nudge_trial.py run --reps 3 --total-cap 3.0 --stop-on-denial
+python3 experiments/trial/nudge_trial.py score
 ```
 
 Conditions: A search only, B graph with a soft nudge, C graph with a strong nudge, D graph with `closure` and the coverage footer. `--uncertainty` adds an `UNVERIFIED:` line to the answer format.

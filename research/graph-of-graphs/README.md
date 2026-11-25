@@ -13,6 +13,7 @@ Experiments on what happens when you combine per-repository code graphs, and on 
 | `experiments/graph_ceiling.py` | The recall ceiling of a mapper graph against an answer key |
 | `experiments/java_reference.py` | A name-resolving Java answer key (imports, packages, static imports) |
 | `experiments/jdeps_reference.py`, `experiments/jdeps/stubs/` | A compiler-derived key for gson, and the stubs needed to compile it |
+| `experiments/trial/nudge_trial.py` | The planned nudge test (Finding 19): five conditions built from Graphify's real installer, hook-firing log, calibration scoring |
 | `experiments/trial/trial.py` | Measured agent trial: conditions A to D, a dollar cap per run, tool-call logging |
 | `experiments/trial/questions*.json` | The questions and answer keys (`questions_flow_v2.json` is the name-resolving key) |
 | `corpus/` | Pinned commits, graph commits, extraction timings, `clone_corpus.sh` |
