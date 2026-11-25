@@ -6,7 +6,7 @@ Experiments on what happens when you combine per-repository code graphs, and on 
 
 | Path | Contents |
 | :--- | :--- |
-| `FINDINGS.md` | Nineteen findings with a status table, runs and cost, answer keys, claim lists, limits |
+| `FINDINGS.md` | Twenty findings (the last is a planned test) with a status table, runs and cost, answer keys, claim lists, limits |
 | `experiments/merge_stats.py` | What `graphify merge-graphs` produces (size, cross-repo edges, bridge nodes) |
 | `experiments/manifest_deps.py` | Cross-repo dependency edges from package manifests |
 | `experiments/simulate_cost.py` | Simulated context cost of a search agent against a graph agent (no model) |
@@ -14,6 +14,8 @@ Experiments on what happens when you combine per-repository code graphs, and on 
 | `experiments/java_reference.py` | A name-resolving Java answer key (imports, packages, static imports) |
 | `experiments/jdeps_reference.py`, `experiments/jdeps/stubs/` | A compiler-derived key for gson, and the stubs needed to compile it |
 | `experiments/trial/nudge_trial.py` | The Claude Code nudge test (Finding 19): five conditions built from Graphify's real installer, hook-firing log, calibration scoring |
+| `experiments/go_reference.py` | Exact answer key for Go "which packages import P" questions (Finding 20) |
+| `experiments/trial/crossover_trial.py` | Finding 20 trial, Claude Code and Antigravity: search only, map, and a noise-gated hook |
 | `experiments/trial/agy_nudge_trial.py` | The same test for Antigravity (`agy`): installer rule, a PreToolUse gate (`../../hooks/agy/graph_gate.py`), gaps rule |
 | `experiments/trial/trial.py` | Measured agent trial: conditions A to D, a dollar cap per run, tool-call logging |
 | `experiments/trial/questions*.json` | The questions and answer keys (`questions_flow_v2.json` is the name-resolving key) |

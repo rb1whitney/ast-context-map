@@ -31,6 +31,7 @@ For agents, a graph tool changes the trade between cost and completeness, and th
 | 17 | Closure trial | Current |
 | 18 | Build time against Graphify | Current; indicative, not a controlled benchmark |
 | 19 | Graphify nudge probe and nudge trials (Claude Code and Antigravity) | Current; graph use depends on the nudge, recall did not change, calibration not testable on these questions |
+| 20 | Map versus search by search noise, with a noise-gated hook (kubernetes) | Key, questions, hook and harness built and tested; trial planned, not run |
 
 ## Runs and cost
 
@@ -579,6 +580,40 @@ Conditions: G0 graph present, no mention; G1 the rule `graphify antigravity inst
 
 What this finding supports: with Claude Code's installer defaults, the combination of `CLAUDE.md` section and hook moved graph use from none to every run; with Antigravity only an enforcing PreToolUse hook did. What it does not support: that using the graph improves answers (it did not here), that "MANDATORY" wording or the calibration rule changes verification, or that any nudge makes agents report the graph's blind spots.
 
+
+## Finding 20: when does a map beat search, and can a hook decide? (kubernetes, planned, not run)
+
+Status: the answer key, questions, hook and harness were built and tested without model calls. Nothing here is a result about agent behavior.
+
+The question behind it: Findings 14 to 19 show that agents rarely use a graph unprompted and that plain search was as accurate as the graph at dagger's size. A map may pay off only where search is too noisy to read. The workflow assumed here is: grep first, and only if grep returns too much, orient with the map, then search inside what it names. The map is a guide to the search, not the answer.
+
+### What was built and checked (no model calls)
+
+- **Question type:** "which Go packages directly import package P" on kubernetes (31,744 files, commit `776432e`). Go requires an explicit import for every cross-package reference, so import lines give an exact key (`experiments/go_reference.py`, 3 tests). The key is independent of the mapper.
+- **The map:** the mapper's package graph (`graph_builder.py`), queried with `semantic_query.py find-usages go:<directory>`. Built in about 2.5 minutes: 18,221 files read, 70,562 nodes, 24,124 import edges. A first build omitted the nested `go.mod` files (my file list matched only the root one), so the staging packages resolved to no importers; the rebuild fixed it.
+- **Agreement:** on the eight questions the graph's importers equal the key's, except one extra importer on each of `pkg/features` and `pkg/api/legacyscheme`. The graph is therefore correct by construction here, and this trial measures cost and search noise, not graph accuracy.
+- **Questions, fixed from grep hit counts before any run** (files a plain `git grep -l` on the import path returns, tests included; importers by the key): low noise `test/e2e/framework/debug` (6 importers, 6 grep files), `test/integration/util` (6, 39), `pkg/apis/flowcontrol` (15, 26), `pkg/volume/util/types` (15, 53); high noise `pkg/features` (172, 587), `pkg/apis/core` (146, 389), `pkg/api/legacyscheme` (144, 227), `test/e2e/framework` (96, 581). In `experiments/trial/questions_go_imports.json`.
+- **The hook:** `hooks/noise_gate.py` (6 tests) works for Claude Code and Antigravity. It counts the files a search pattern matches (`git grep -l`), allows the search if there are 100 or fewer, and otherwise denies once with the map command named. After the map command runs, or after one denial, searches are allowed. The agent gets no standing instruction. Checked live without a model: it denied a search of 590 files and named the command, allowed one of 10 files, and recognised the map command.
+- **Setup lesson:** on the lab's mounted drive one search of kubernetes took 8 to 13 seconds, so a hook that counts hits timed out and silently allowed everything. The trial runs on a native-filesystem clone of the same commit (0.6 seconds per search). The hook treats an unreadable count as quiet, which is the safe direction but hides this failure; it is logged.
+
+### Design
+
+| Condition | Agent receives |
+| :--- | :--- |
+| S | search only: no map command allowed or mentioned |
+| M | map command allowed and named in the prompt (soft nudge); search also allowed |
+| H | noise gate; the prompt does not mention the map; the denial names the command |
+| H+ | H, and the denial adds "confirm the list with a search inside those files" |
+
+Eight questions, two repeats, four conditions: 64 runs per harness, reported separately and never pooled. Claude Code on `haiku` (budget $0.15 a run, $4 for the trial; expected $1 to $2.5 from earlier per-run costs, which is an estimate) and Antigravity on `gemini-4-hydrogen-medium` (reported in tokens; expected about 13 million, also an estimate). Measured per run: precision, recall and F1 against the key, cost or tokens, turns, map calls, searches and reads, hook decisions. A hook-condition run with no logged hook decision, an error, or no parsable answer is invalid and reported as such. A pilot of one run (condition H, `pkg/features`) comes first to confirm the hook fires and the map command runs.
+
+Pre-registered readings, fixed before running:
+- **The map earns its place** only if, on the four high-noise questions, M or H has a lower median cost (tokens for Antigravity) than S and a median F1 no more than 0.05 below S.
+- **The gate is sound** if H uses the map in under half of the low-noise runs and in more than half of the high-noise runs, and its median cost on low-noise questions is within 10 percent of S.
+- **H+ is better than H** only if its median F1 is not lower and it reads or searches inside the mapped files in more runs.
+- If none of these hold, the result is that plain search is as good here, and it is reported that way.
+
+Known limits, stated before running: the graph is exact for this question, which favors the map's accuracy and says nothing about questions the mapper models less well (Findings 10 to 14); import questions are one question type; two repeats per cell leave very few outcomes per group; kubernetes is one Go repository; for Antigravity condition S cannot stop the agent from running the map command if it finds it; user-level instructions load in every run, equally.
 
 ## Related work
 

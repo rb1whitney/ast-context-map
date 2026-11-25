@@ -37,3 +37,5 @@ Wire it in `<workspace>/.agents/hooks.json`:
   as search.
 - A `PreInvocation` hook that injects context did not log any firing in an earlier run; the cause is unknown.
 - Hooks in `~/.gemini/config/hooks.json` (global) were not tested.
+
+See also `hooks/noise_gate.py`, which gates only noisy searches (it counts the files a pattern matches and denies above a threshold) and serves both Claude Code and Antigravity. It is built for Finding 20 and has not been run on a model yet.
