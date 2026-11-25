@@ -30,7 +30,7 @@ For agents, a graph tool changes the trade between cost and completeness, and th
 | 16 | Rebuilt graph | Current |
 | 17 | Closure trial | Current |
 | 18 | Build time against Graphify | Current; indicative, not a controlled benchmark |
-| 19 | Graphify nudge probe and planned test | Probe current; experiment planned, not run |
+| 19 | Graphify nudge probe and nudge trials (Claude Code and Antigravity) | Current; graph use depends on the nudge, recall did not change, calibration not testable on these questions |
 
 ## Runs and cost
 
@@ -41,10 +41,12 @@ For agents, a graph tool changes the trade between cost and completeness, and th
 | dagger flow, clean, A, B and C | 9 | 27 | $0.357 | `data/trial-flow-v3-runs.csv` |
 | dagger flow, rebuilt graph, A and B | 16 | 18 | $0.286 | `data/trial-flow-v4-runs.csv` |
 | dagger flow, closure, D | 17 | 9 | $0.034 | `data/trial-flow-v5-runs.csv` |
-| pilots and two interrupted runs | | 7 | $0.057 | not published |
-| **Total** | | **115** | **$1.145** | |
+| dagger flow, nudge test N0 to N4 (Claude Code) | 19 | 45 | $0.764 | `data/trial-nudge-claude-runs.csv` |
+| pilots and interrupted runs | | 15 | $0.235 | not published |
+| **Total (Claude)** | | **168** | **$2.087** | |
+| dagger flow, nudge test G0 to G4 (Antigravity, `gemini-4-hydrogen-medium`) | 19 | 45 | not reported (about 9.0 million tokens) | `data/trial-nudge-agy-scores.txt` |
 
-All runs used `claude-haiku-5-5` (from the run files). The cost excludes the assistant sessions that built and analysed the experiments and any unsaved interrupted runs.
+Claude runs used `claude-haiku-5-5` (from the run files). The Antigravity CLI reports tokens, not dollars, and its pilot (one run, 324,000 tokens) is not in the table. The cost excludes the assistant sessions that built and analysed the experiments and any unsaved interrupted runs.
 
 ## Which answer key each finding uses
 
@@ -467,7 +469,7 @@ Reading:
 - Whether that trade is good enough depends on the cost of a miss. The F1 bar was missed by 0.01, within the run-to-run noise seen for search (0.96 against 0.94).
 - Limits: nine runs but effectively three distinct outcomes, comparison runs made earlier, D's prompt names `closure` where B's does not, one repository, one small model, a text-based reference.
 
-Cost of everything run so far: 115 saved runs, $1.15.
+Cost of the Claude runs, including the nudge test: 168 saved runs, $2.09 (the 115 earlier runs cost $1.15).
 
 ## Finding 18: build time of this repository's mapper against Graphify, and what each builds
 
@@ -485,9 +487,9 @@ The mapper's build time was measured on four of the 20 repositories with `/usr/b
 - On guava the mapper's own graph is 24 MB (29,275 nodes, 52,336 edges) and its `code_map.md` is 7.7 MB, against Graphify's 128.6 MB graph. Both are too large to hand to an agent without a budget. The mapper recorded 13 files with parse errors, 463 reflection call sites in 162 files, 7,173 resolved static-import calls and 140 annotation types on guava.
 - Limits: one run per tool and repository, different sessions, different graph contents, Graphify's parallelism (16 workers) and the mapper's single process not equalised.
 
-## Finding 19: what Graphify's installed nudge does, and a pre-registered test of whether nudges matter (dagger flow, planned, not run)
+## Finding 19: what Graphify's installed nudge does, and whether nudges matter (dagger flow)
 
-Status: the probe below was run; the agent experiment has not been run. Nothing here is a result about agent behavior.
+Status: the probe, a pre-registered Claude Code trial (45 runs) and a second, Antigravity trial (45 runs) were run. Results follow the design.
 
 ### Probe: what `graphify claude install` writes (Graphify 0.9.86)
 
@@ -499,7 +501,7 @@ Run in a new empty git repository, then each hook fed sample tool payloads on st
 - Silent (no output, exit 0) when no graph exists, for a non-search command (`ls`), and for the one `Read` payload tried; what triggers the `Read|Glob` hook was not determined.
 - The message says nothing about what the graph misses or that its answers need verifying.
 
-Not checked: whether hooks fire under `claude -p` with project settings, and whether the hook text changes behavior. Earlier trials (Findings 9, 16, 17) put the nudge in the task prompt, so the hook has never been tested, and no condition has left the graph present with no mention at all.
+Checked later (see Results): hooks fire under `claude -p` with project settings, and the nudge changes graph use. Earlier trials (Findings 9, 16, 17) put the nudge in the task prompt, so the hook has never been tested, and no condition has left the graph present with no mention at all.
 
 ### Hypotheses
 
@@ -530,9 +532,53 @@ Pre-registered readings, fixed before running:
 - Hypothesis 1 holds if N0 queries the graph in fewer than half the runs.
 - Hypothesis 3 holds if N3 recall is not higher than N0 or N1 and N3 searches after the graph in fewer runs than N4.
 - Hypothesis 4 holds if N4 flags uncertainty in more than half of the answers that miss files and N3 in fewer than a quarter.
-- Antigravity is out of scope. Graphify installs differently there and this test uses Claude Code only.
+- This pre-registration covers Claude Code only. The Antigravity trial was added afterwards and has no pre-registered readings (see below).
 
-What this finding does not support yet: any claim that the hook should be installed, or that telling an agent about a graph is required.
+### Results: Claude Code, N0 to N4 (45 runs, all valid)
+
+Scored with `nudge_trial.py score`; per-run rows in `data/trial-nudge-claude-runs.csv`, table in `data/trial-nudge-claude-scores.txt`. Nine runs per condition (3 questions, 3 repeats), $0.764 in total. No run was invalid: the hook fired in every N2 to N4 run (median 22, 30 and 19 firings per run) and no call was denied.
+
+| Condition | Graph used | Graph was first call | Median graph calls | Median searches after graph | Median F1 (range) | Recall | Flagged when files missed | Overconfident |
+| :--- | ---: | ---: | ---: | ---: | :--- | ---: | ---: | ---: |
+| N0 nothing | 0 of 9 | 0 | 0 | 7 | 0.94 (0.87-1.00) | 0.96 | 4 of 7 | 0 |
+| N1 `CLAUDE.md` section | 5 of 9 | 5 | 1 | 8 | 0.96 (0.83-1.00) | 0.96 | 5 of 7 | 1 |
+| N2 hook | 9 of 9 | 0 | 1 | 6 | 0.96 (0.83-1.00) | 0.96 | 5 of 5 | 0 |
+| N3 both | 9 of 9 | 7 | 1 | 10 | 0.96 (0.85-1.00) | 0.96 | 5 of 6 | 0 |
+| N4 both plus calibration rule | 9 of 9 | 7 | 1 | 7 | 0.94 (0.82-0.99) | 0.92 | 7 of 7 | 0 |
+
+Cost per run was $0.014 to $0.019 and median turns 19 to 31 across conditions. "Overconfident" means recall below 0.8 with an answer that says nothing is unverified.
+
+Against the pre-registered readings:
+
+- **Hypothesis 1 holds.** With the graph in the repository and no mention, the agent never queried it (0 of 9).
+- **Hypothesis 2 holds, and the effect is large.** Graph use went from 0 to 5 of 9 with the `CLAUDE.md` section and to 9 of 9 with the hook. In N2 the agents used the graph in every run but never as the first call: the hook text arrived after they had already searched. The earlier soft task prompt (Finding 9) gave 9 of 9 with the graph first; the installer's own nudge gets there only when `CLAUDE.md` and the hook are combined, and then in 7 of 9.
+- **Hypothesis 3 is not supported as written.** Recall in N3 was not higher than in N0 or N1 (0.96 each), which matches the first clause. The second clause failed: every run in every condition searched after the graph (9 of 9), and the N3 median (10) was above N4's (7), not below. Confidence was not measured, so the "raises confidence" part is untested.
+- **Hypothesis 4 is not supported as written.** N4 flagged uncertainty in all 7 answers that missed files, which meets the first bar. N3 flagged 5 of 6, far above the quarter the reading allowed, and N0 flagged 4 of 7. All conditions share one answer format with an `UNVERIFIED:` line, so the format alone produced most of the flagging. The calibration rule moved it from 4 of 7 to 7 of 7, on a handful of answers.
+- **The graph raised use, not accuracy.** Median F1 was 0.94 to 0.96 and recall 0.92 to 0.96 in every condition, including the one that never used the graph. The calibration rule did not reduce misses; N4 recall was the lowest (0.92).
+
+### Results: Antigravity, G0 to G4 (45 runs, all valid)
+
+Scored with `agy_nudge_trial.py score`; the table is in `data/trial-nudge-agy-scores.txt`. Same dagger flow questions and scoring key, Graphify's graph, model `gemini-4-hydrogen-medium` for every run (read from each run's init event). Nine runs per condition, about 9.0 million tokens in total, no invalid runs. Antigravity reports tokens, not dollars.
+
+Conditions: G0 graph present, no mention; G1 the rule `graphify antigravity install` writes (always on); G2 the generic PreToolUse gate in `hooks/agy/graph_gate.py` (denies the first search-like call once and points at the graph); G3 the gate plus a rule and gate note that stress what the graph misses; G4 the gaps rule alone.
+
+| Condition | Graph used | Graph was first call | Runs with a gate denial | Median file reads | Recall | Median F1 (range) | Tokens per run |
+| :--- | ---: | ---: | ---: | ---: | ---: | :--- | ---: |
+| G0 nothing | 0 of 9 | 0 | 0 | 15 | 1.00 | 0.96 (0.78-1.00) | 197,054 |
+| G1 installer rule | 0 of 9 | 0 | 0 | 16 | 1.00 | 0.99 (0.78-1.00) | 179,846 |
+| G2 gate | 9 of 9 | 9 | 9 | 26 | 1.00 | 0.96 (0.83-1.00) | 197,613 |
+| G3 gate plus gaps | 9 of 9 | 4 | 9 | 26 | 1.00 | 0.99 (0.83-1.00) | 224,447 |
+| G4 gaps rule alone | 3 of 9 | 0 | 0 | 22 | 1.00 | 0.99 (0.96-1.00) | 196,735 |
+
+- **Without enforcement the agent does not use the graph.** The installer's always-on rule (G1) was followed in 0 of 9 runs, the same as no nudge. This agent also did not search with grep at all (median 0 searches after the graph); it reads files directly, 15 reads at the median with no graph.
+- **A PreToolUse gate works.** G2 and G3 used the graph in 9 of 9 runs, once, after the one denial. The agents then read as many or more files than agents without the graph (median 26 against 15), so the graph oriented them and did not replace reading.
+- **A rule that only talks about the graph's gaps got a third of the runs to query it** (G4, 3 of 9).
+- **Calibration could not be tested.** Recall was 1.00 in all five conditions: no valid run missed a key file, so there was nothing to flag, and "flagged when missed" is 0 of 0 everywhere. Whether the gaps wording changes what an agent reports when the graph is wrong is untested.
+- Cost: the gate with the gaps note (G3) used 14 percent more tokens than no nudge (224,447 against 197,054); the other conditions were within 9 percent.
+- The two harnesses are not comparable cell by cell: different models, tools, rules and hook mechanisms.
+
+What this finding supports: with Claude Code's installer defaults, the combination of `CLAUDE.md` section and hook moved graph use from none to every run; with Antigravity only an enforcing PreToolUse hook did. What it does not support: that using the graph improves answers (it did not here), that "MANDATORY" wording or the calibration rule changes verification, or that any nudge makes agents report the graph's blind spots.
+
 
 ## Related work
 
@@ -557,6 +603,7 @@ I read LogicLens and codebadger in full (text supplied by the author). The commu
 - On dagger flow questions, scored against the name-resolving key: search F1 0.94 to 0.96; graph agents with the first mapper 0.65 (recall 0.48); with the rebuilt mapper 0.88 (recall 0.78) at the same cost and more turns; with the `closure` query and footer 0.84 (recall 0.83) at $0.004 a run, 2 turns and 26,662 input tokens, against $0.013, 20 turns and 219,125 for search (Findings 14, 16, 17).
 - In every logged run (Findings 9, 16, 17) the agents used the graph, a soft prompt was as effective as a strong one, and they mostly did not verify: a median of one or two searches and no file reads.
 - The mapper built its graph 7.6 to 17 times faster than Graphify's `extract --code-only` on four repositories, with a smaller graph (Finding 18).
+- Graph use depends on the nudge. In Claude Code, with the graph present and no mention, 0 of 9 runs used it; the installer's `CLAUDE.md` section gave 5 of 9, its hook 9 of 9 and both together 9 of 9 (graph first in 7). In Antigravity the installer's rule gave 0 of 9 and a PreToolUse gate 9 of 9. Answer quality did not change: median F1 0.94 to 0.96 across the Claude conditions and recall 1.00 across the Antigravity ones (Finding 19).
 - On gson and yapf "who uses X" questions with the class named, plain search was cheaper: 2 turns against 5 and about 2.7 times fewer input tokens (Finding 7).
 
 ## What not to claim
@@ -565,8 +612,10 @@ I read LogicLens and codebadger in full (text supplied by the author). The commu
 - That graphs lose in general, or that they win. The trials cover one small model, two question types, three flow questions and one large repository.
 - That search is more accurate than graph answers. That comparison reversed when the key changed from grep to compiled dependencies (Finding 11).
 - That the footer makes agents verify. In Finding 17 they made one call, copied the list, and mostly did not search or read. No task yet put a flagged blind spot in front of them.
-- That agents "didn't know" they were trading. The prompts demanded a bare file list, so they had no way to say so; the `UNVERIFIED:` condition exists but has not been run.
-- That a stronger prompt or an enforcing hook is needed for agents to use the graph: adoption was 9 of 9 with the soft prompt.
+- That agents "didn't know" they were trading. The Finding 17 prompts demanded a bare file list. In Finding 19 the answer format had an `UNVERIFIED:` line and agents used it for 4 of 7 missing-file answers with no calibration rule, so the format matters more than the rule.
+- That a stronger prompt or an enforcing hook is needed for agents to use the graph. Adoption was 9 of 9 with a soft task prompt (Finding 9), but 0 of 9 with no mention, so the nudge matters; the installer's hook and `CLAUDE.md` section were one way to supply it, not the only way (Finding 19).
+- That a nudge, a "MANDATORY" wording or a calibration rule makes agents verify or report the graph's gaps. In Finding 19 the answer format alone produced most of the flagging, and the Antigravity questions had no missed files to flag.
+- That Finding 19 compares the two agent harnesses; they differ in model, tools and nudge mechanism.
 - That a hierarchy answers questions well. Only its size was measured.
 - That the speed gap over Graphify grows with repository size (it did not: 9, 12.5, 17 and 7.6 times), or that the mapper is a better tool: it is narrower.
 - That the name-resolving key is compiler-grade, or that Finding 13 was checked against a compiler. Only gson has a compiler-derived key.
@@ -581,6 +630,7 @@ I read LogicLens and codebadger in full (text supplied by the author). The commu
 - Answer keys are approximate. Only one module of one repository (gson) has a compiler-derived key, `jdeps` reports only RUNTIME-retained annotations, and four types were stubbed to compile. The question set is hub classes, which biases toward well-connected code.
 - Findings 1 to 6 use Graphify's graphs; the agent trials (7 and 9 to 17) use this repository's mapper. The mapper builds a smaller graph, and for Python only a module-level one.
 - Twenty repositories, mostly Google and mostly independent of each other; results may differ elsewhere. Search was very strong at the size of dagger (about 2,000 files); the effect of a much larger repository is untested.
+- Finding 19: three questions, nine runs per cell, so some cells hold effectively three outcomes. Calibration was measured on 5 to 7 answers per Claude condition and on none for Antigravity. User-level instructions of the author loaded in every run (and the Antigravity runs also loaded a global rules file and a global Graphify skill), so N0 and G0 are not instruction-free. Antigravity agents could in principle bypass the gate with a shell one-liner. The hook-text `PreInvocation` injection of Antigravity was not tested because it did not fire in a probe.
 - Comparison runs were made at different times, and from Finding 16 on the query script changed (a coverage footer was added), so older graph runs are not comparable with newer ones.
 
 ## Reproduce
@@ -612,14 +662,20 @@ python3 experiments/trial/trial.py score --questions experiments/trial/questions
 python3 experiments/trial/nudge_trial.py run --dry-run
 python3 experiments/trial/nudge_trial.py run --pilot        # one paid run to confirm the hook fires
 python3 experiments/trial/nudge_trial.py run --reps 3 --total-cap 3.0 --stop-on-denial
-python3 experiments/trial/nudge_trial.py score
+python3 experiments/trial/nudge_trial.py score --csv data/trial-nudge-claude-runs.csv
+
+# the same test on Antigravity (agy 1.5.17); the gate hook is ../../hooks/agy/graph_gate.py
+python3 experiments/trial/agy_nudge_trial.py run --dry-run
+python3 experiments/trial/agy_nudge_trial.py run --pilot
+python3 experiments/trial/agy_nudge_trial.py run --reps 3 --model gemini-4-hydrogen-medium
+python3 experiments/trial/agy_nudge_trial.py score
 ```
 
 Conditions: A search only, B graph with a soft nudge, C graph with a strong nudge, D graph with `closure` and the coverage footer. `--uncertainty` adds an `UNVERIFIED:` line to the answer format.
 
 ## Next steps
 
-1. Run the nudge test pre-registered in Finding 19 (it includes a blind-spot question). Earlier plan: put a flagged blind spot in front of the agents: a task whose closure contains reflection-wired or framework-wired files, a planted dependency the build cannot catch, and the `UNVERIFIED:` line. This is the test of whether the footer makes agents verify.
+1. Put a flagged blind spot in front of the agents (the nudge test of Finding 19 ran without it and could not test calibration): a task whose closure contains reflection-wired or framework-wired files, a planted dependency the build cannot catch, and the `UNVERIFIED:` line. Use harder questions so that recall is below 1.00 and there is something to flag.
 2. Test the effect of repository size on a very large monolith, where search returns long match lists.
 3. Add Python class-usage edges: the yapf graph named no dependents.
 4. Key classes by package-qualified name so same-named classes stop collapsing in the mapper.

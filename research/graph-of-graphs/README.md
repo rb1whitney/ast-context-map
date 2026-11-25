@@ -6,14 +6,15 @@ Experiments on what happens when you combine per-repository code graphs, and on 
 
 | Path | Contents |
 | :--- | :--- |
-| `FINDINGS.md` | Nineteen findings (the last is a planned test) with a status table, runs and cost, answer keys, claim lists, limits |
+| `FINDINGS.md` | Nineteen findings with a status table, runs and cost, answer keys, claim lists, limits |
 | `experiments/merge_stats.py` | What `graphify merge-graphs` produces (size, cross-repo edges, bridge nodes) |
 | `experiments/manifest_deps.py` | Cross-repo dependency edges from package manifests |
 | `experiments/simulate_cost.py` | Simulated context cost of a search agent against a graph agent (no model) |
 | `experiments/graph_ceiling.py` | The recall ceiling of a mapper graph against an answer key |
 | `experiments/java_reference.py` | A name-resolving Java answer key (imports, packages, static imports) |
 | `experiments/jdeps_reference.py`, `experiments/jdeps/stubs/` | A compiler-derived key for gson, and the stubs needed to compile it |
-| `experiments/trial/nudge_trial.py` | The planned nudge test (Finding 19): five conditions built from Graphify's real installer, hook-firing log, calibration scoring |
+| `experiments/trial/nudge_trial.py` | The Claude Code nudge test (Finding 19): five conditions built from Graphify's real installer, hook-firing log, calibration scoring |
+| `experiments/trial/agy_nudge_trial.py` | The same test for Antigravity (`agy`): installer rule, a PreToolUse gate (`../../hooks/agy/graph_gate.py`), gaps rule |
 | `experiments/trial/trial.py` | Measured agent trial: conditions A to D, a dollar cap per run, tool-call logging |
 | `experiments/trial/questions*.json` | The questions and answer keys (`questions_flow_v2.json` is the name-resolving key) |
 | `corpus/` | Pinned commits, graph commits, extraction timings, `clone_corpus.sh` |
@@ -46,7 +47,7 @@ python3 ../../scripts/code_mapper.py gson --force --out-dir experiments/trial/gr
 python3 experiments/trial/trial.py run --pilot --dry-run   # prints the commands without running them
 ```
 
-Each run has a hard dollar cap (`--cap`) and the whole trial stops at `--total-cap`. Every trial used the smallest model; all 115 saved runs cost $1.15 in total. The full reproduce list, including the answer-key scripts and the closure trial, is at the end of [FINDINGS.md](FINDINGS.md).
+Each run has a hard dollar cap (`--cap`) and the whole trial stops at `--total-cap`. Every trial used the smallest model; all 168 saved Claude runs cost $2.09 in total (plus 45 Antigravity runs, reported in tokens). The full reproduce list, including the answer-key scripts and the closure trial, is at the end of [FINDINGS.md](FINDINGS.md).
 
 ## Caveats
 
