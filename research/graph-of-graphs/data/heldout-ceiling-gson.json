@@ -1,0 +1,74 @@
+[
+ {
+  "entry": "metrics/src/main/java/com/google/gson/metrics/BagOfPrimitivesDeserializationBenchmark.java",
+  "ref": 34,
+  "in_graph": 34,
+  "hit": 30
+ },
+ {
+  "entry": "gson/src/main/java/com/google/gson/internal/bind/ReflectiveTypeAdapterFactory.java",
+  "ref": 50,
+  "in_graph": 50,
+  "hit": 44
+ },
+ {
+  "entry": "gson/src/main/java/com/google/gson/TypeAdapterFactory.java",
+  "ref": 30,
+  "in_graph": 30,
+  "hit": 27
+ },
+ {
+  "entry": "metrics/src/main/java/com/google/gson/metrics/SerializationBenchmark.java",
+  "ref": 46,
+  "in_graph": 46,
+  "hit": 37
+ },
+ {
+  "entry": "gson/src/main/java/com/google/gson/ToNumberPolicy.java",
+  "ref": 12,
+  "in_graph": 12,
+  "hit": 2
+ },
+ {
+  "entry": "gson/src/main/java/com/google/gson/LongSerializationPolicy.java",
+  "ref": 25,
+  "in_graph": 25,
+  "hit": 0
+ },
+ {
+  "entry": "gson/src/main/java/com/google/gson/JsonPrimitive.java",
+  "ref": 9,
+  "in_graph": 9,
+  "hit": 8
+ },
+ {
+  "entry": "gson/src/main/java/com/google/gson/TypeAdapter.java",
+  "ref": 21,
+  "in_graph": 21,
+  "hit": 18
+ },
+ {
+  "entry": "gson/src/main/java/com/google/gson/JsonParser.java",
+  "ref": 19,
+  "in_graph": 19,
+  "hit": 16
+ },
+ {
+  "entry": "gson/src/main/java/com/google/gson/internal/bind/JsonTreeWriter.java",
+  "ref": 14,
+  "in_graph": 14,
+  "hit": 13
+ },
+ {
+  "entry": "gson/src/main/java/com/google/gson/internal/sql/SqlDateTypeAdapter.java",
+  "ref": 34,
+  "in_graph": 34,
+  "hit": 18
+ },
+ {
+  "entry": "gson/src/main/java/com/google/gson/internal/sql/SqlTimeTypeAdapter.java",
+  "ref": 34,
+  "in_graph": 34,
+  "hit": 18
+ }
+]

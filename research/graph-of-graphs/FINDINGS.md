@@ -34,6 +34,7 @@ For agents, a graph tool changes the trade between cost and completeness, and th
 | 18 | Build time against Graphify | Current; indicative, not a controlled benchmark |
 | 19 | Graphify nudge probe and nudge trials (Claude Code and Antigravity) | Current; graph use depends on the nudge, recall did not change, calibration not testable on these questions |
 | 20 | Map versus search by search noise, with a noise-gated hook (kubernetes) | Current; F1 1.00 in every cell, so the map changed cost, not accuracy; the Antigravity cost penalty came from the footer (rerun) |
+| 21 | Held-out check of the mapper's two-hop ceiling (dagger, gson, guava) | Current; 0.76 and 0.70 pooled against 0.84 on the tuned questions; guava not usable (duplicate trees) |
 
 ## Runs and cost
 
@@ -497,7 +498,7 @@ Run in a new empty git repository, then each hook fed sample tool payloads on st
 
 - `CLAUDE.md` section: for codebase questions run `graphify query` first when `graphify-out/graph.json` exists; use `graphify path` and `graphify explain`; run `graphify update .` after changing code.
 - `.claude/settings.json`: two `PreToolUse` hooks, `Bash|Grep` running `graphify hook-guard search` and `Read|Glob` running `graphify hook-guard read`.
-- Search hook output with a graph present and a search-like Bash command: `additionalContext` reading "MANDATORY: graphify-out/graph.json exists. You MUST run `graphify query "<question>"` before grepping raw files. Only grep after graphify has oriented you, or to modify/debug specific lines." It does not deny the call.
+- Search hook output with a graph present and a search-like Bash command: `additionalContext` reading "MANDATORY: graphify-out/graph.json exists. You MUST run `graphify query "<question>"` before grepping raw files. Only grep after graphify has oriented you, or to modify/debug specific lines." It does not deny the call (this is the default install; the opt-in strict install is covered in the strict-mode follow-up under Finding 19).
 - Silent (no output, exit 0) when no graph exists, for a non-search command (`ls`), and for the one `Read` payload tried; what triggers the `Read|Glob` hook was not determined.
 - The message says nothing about what the graph misses or that its answers need verifying.
 
@@ -691,6 +692,33 @@ Against the pre-registered readings:
 Against Claude Code (first run, old footer, not rerun): the Claude M cost was 0.72 of S ($0.0095 against $0.0132), H 1.03 and H+ 1.06. After the fix, Antigravity's M and H are cheaper than S, in the same direction as Claude's M and further than Claude's H; H+ is above S on both. So the footer change brought Antigravity's M and H in line with Claude, and not H+. The cause is attributed to the footer because it was the only intended change and the S control was flat; that is a before and after comparison and not a concurrent randomized one, and the Claude runs still carry the old footer.
 
 Limits: eight runs per cell; four questions each repeated twice; F1 at its ceiling; the first run and the rerun were made hours apart on the same account.
+
+### Antigravity hook behavior (probes on `agy` 1.5.17, one live run each; not a trial)
+
+These were found while wiring the noise gate and are recorded so the claims about Antigravity hooks can be checked. Each came from one run of `gemini-4-hydrogen-medium` in a scratch repository with 130 files containing a search token; none was repeated.
+
+- A `.agents/hooks.json` with a `hooks.PreToolUse` entry loaded and ran. Hook commands run with the working directory `<workspace>/.agents/`, not the workspace root: a command `python3 scripts/noise_gate.py` was looked up as `<workspace>/.agents/scripts/noise_gate.py`. The run reported `JSON hook "jsonhook__hooks_PreToolUse_0_0" failed: command failed: exit status 2, stderr: python3: can't open file '<workspace>/.agents/scripts/noise_gate.py': [Errno 2] No such file or directory`.
+- A failing hook blocks the tool call. That call came back as a `TOOL_ERROR`, and the agent's reply said it could not run `rg`; it did not fall back to allowing the call. A hook that cannot start therefore disables the tool it guards.
+- With the path corrected to `../scripts/noise_gate.py` and a fail-open wrapper (`... || echo '{"decision":"allow"}'`), the gate denied the first `rg` over 130 matching files with `tool call denied by pre-tool hook: <reason>`, recorded one denial in its state file, and the agent then answered correctly (130).
+- A `PreInvocation` hook that injects context (`injectSteps`) logged no firing in an earlier probe; the cause is unknown and it was not pursued (also noted in the limits).
+- A hook that cannot read its input, or fails, should allow the call; the noise gate does so on any exception and logs the decision.
+
+## Finding 21: a held-out check of the mapper's two-hop ceiling (dagger, gson, guava; no model)
+
+Why: the mapper fixes of Findings 11 to 14 were found and checked on three dagger entry classes, so the 0.84 ceiling is a development-set number. This draws entry classes at random instead (`experiments/heldout_ceiling.py`): all main-source files with a two-hop reference closure of at least 8 files under the name-resolving key (Finding 14), shuffled with a fixed seed (20), the first 12 taken; no use of graph connectivity; for dagger the three development entries are excluded. The ceiling is the share of the reference reachable in two hops of the mapper's file-level graph (`graph_ceiling.py`'s method), the best an agent using that graph could do. Per-entry rows are in `data/heldout-ceiling-*.json`.
+
+| Repository | Entries | Median ceiling | Pooled ceiling | Range | Share of main files sharing a simple name |
+| :--- | ---: | ---: | ---: | :--- | ---: |
+| dagger (development set, Finding 14) | 3 | | 73 of 87 = 0.84 | | 13 percent |
+| dagger (held out) | 12 | 0.82 | 233 of 306 = 0.76 | 0.07 to 0.91 | 13 percent |
+| gson (held out) | 12 | 0.85 | 231 of 328 = 0.70 | 0.00 to 0.93 | 7 percent |
+| guava (held out) | 12 | 0.08 | 28 of 287 = 0.10 | 0.00 to 0.50 | 99 percent |
+
+Reading:
+- On the two repositories where class names are mostly unique, the held-out ceiling is lower than the development figure by 8 points (dagger, pooled) and 14 points (gson), with the median at 0.82 and 0.85. The tuned number was optimistic; it was not off by a factor.
+- A few entries sit far below the rest (dagger `BindingRepresentations` 0.07, gson `LongSerializationPolicy` 0.00 and `ToNumberPolicy` 0.17). I have not diagnosed them.
+- Guava is not a measure of ordinary recall. In guava 99 percent of main-source files share a simple name with another file, because the repository holds two parallel source trees (`guava/` and `android/guava/`), and the mapper keys classes by simple name (Next steps, item 6), so edges from one tree land on the other copy. A ceiling of 0.10 shows that the mapper cannot be used as-is on repositories with duplicate trees, not that its graph is 90 percent empty.
+- Limits: 12 entries per repository; the minimum-closure filter favors larger closures; the key is not compiler-checked; this measures the ceiling only, and the agent trials of Findings 16 and 17 remain on the three development questions.
 
 ## Related work
 
