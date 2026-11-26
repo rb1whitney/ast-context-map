@@ -1,0 +1,12 @@
+ruleDirs:
+  - rules/local/java
+  - rules/local/kubernetes
+  - rules/local/terraform
+  - rules/local/crossplane
+  - rules/local/vault
+  - rules/local/go
+  - rules/local/python
+testConfigs:
+  - testDir: rule-tests
+utilDirs:
+  - utils

@@ -1,0 +1,7 @@
+models in results: ['gemini-4-hydrogen-medium']
+cond  n inval graph first denies srch+ read+ flag/miss overconf   tokens  prec   rec   F1 med (min-max)
+G0    9     0     0     0      0     0    15    0/0           0   197054  0.92  1.00    0.96 (0.78-1.00)
+G1    9     0     0     0      0     0    16    0/0           0   179846  0.97  1.00    0.99 (0.78-1.00)
+G2    9     0     9     9      9     0    26    0/0           0   197613  0.92  1.00    0.96 (0.83-1.00)
+G3    9     0     9     4      9     0    26    0/0           0   224447  0.97  1.00    0.99 (0.83-1.00)
+G4    9     0     3     0      0     0    22    0/0           0   196735  0.97  1.00    0.99 (0.96-1.00)
