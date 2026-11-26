@@ -102,3 +102,11 @@ def test_closure_footer_verifies_the_right_direction_and_ids_are_stripped(tmp_pa
     q = semantic_query.SemanticQuery(str(graph_file))
     footer = q.coverage_footer(set(), "go:test/e2e/framework/debug")
     assert "git grep -lw debug" in footer and "go:" not in footer.split("git grep")[1]
+
+
+def test_closure_lines_do_not_repeat_what_the_path_already_says(tmp_path):
+    out = semantic_query.SemanticQuery.from_dict(graph(tmp_path)).closure("A", depth=2)
+    first = next(line for line in out.splitlines() if "src/B.java" in line)
+    assert first == "- hop 1  src/B.java  (uses-type)"
+    second = next(line for line in out.splitlines() if "src/C.java" in line)
+    assert second == "- hop 2  src/C.java  <- B.java (uses-type)"

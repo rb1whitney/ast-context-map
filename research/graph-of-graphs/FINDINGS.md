@@ -20,6 +20,7 @@ Dagger flow numbers use the primary key (Finding 14). Everything is one small mo
 | Graph agents against search on two-hop questions (dagger) | Search: F1 0.94, $0.013, 20 turns, 54.5 s per run. First mapper: 0.65 (recall 0.48). Rebuilt mapper, one-hop tools: 0.88 (recall 0.78), same cost, 36 turns. `closure` tool: 0.84 (recall 0.83), $0.004, 2 turns, 10.5 s. | 14, 16, 17 |
 | Does the answer key change the ranking? | Yes: on gson, search scored 1.00 against a grep-built key and 0.84 against compiled dependencies; the graph 0.89 and 1.00. | 11 |
 | Is the mapper's 0.84 ceiling real? | Lower on held-out entries: 0.76 pooled on dagger and 0.70 on gson (random entries); unusable on guava (0.10, duplicate source trees). | 21 |
+| Did keeping same-named classes apart fix it? | Held-out recall / precision: dagger 0.76 / 0.83 to 0.86 / 0.96; guava 0.10 / 0.46 to 0.71 / 0.91; gson unchanged at 0.70 / 1.00. Offline only; no agent runs on the new mapper. | 22 |
 | Do agents use a map unprompted? | No: 0 of 9 Claude runs and 0 of 9 Antigravity runs. Claude's `CLAUDE.md` section plus hook: 9 of 9 (graph first in 7; only the search hook acted, see the strict-mode follow-up). Antigravity: installer rule 0 of 9, a blocking PreToolUse gate 9 of 9. | 19 |
 | Does using the map change accuracy? | Not when it is complete: recall 0.92 to 0.96 on Claude in every condition; F1 1.00 in every kubernetes cell. It does when the map is incomplete (recall tracked the graph's ceiling). | 10, 19, 20 |
 | What does a map change when it is exact (kubernetes import questions)? | Cost. High-noise questions, median: Claude 0.72 of search when the map was named; Antigravity 0.44 (named) and 0.65 (noise gate) of search after the footer fix, against 1.43 and 1.49 before it. | 20 |
@@ -51,6 +52,7 @@ Dagger flow numbers use the primary key (Finding 14). Everything is one small mo
 | 19 | Graphify nudge probe and nudge trials (Claude Code and Antigravity) | Current; graph use depends on the nudge, recall did not change, calibration not testable; strict mode never fired; the Read hook was inert outside the working directory |
 | 20 | Map versus search by search noise, with a noise-gated hook (kubernetes) | Current; F1 1.00 in every cell, so the map changed cost, not accuracy; the Antigravity cost penalty came from the footer (rerun) |
 | 21 | Held-out check of the mapper's two-hop ceiling (dagger, gson, guava) | Current; 0.76 and 0.70 pooled against 0.84 on the tuned questions; guava not usable (duplicate trees) |
+| 22 | Mapper and answer-key fix for same-named Java classes; memory and output size | Current; changes the mapper after all agent trials (Findings 7 to 20 used the earlier mapper, commit `0a12d5c`) |
 
 ## Runs and cost
 
@@ -768,6 +770,32 @@ Reading:
 - Guava is not a measure of ordinary recall. In guava 99 percent of main-source files share a simple name with another file, because the repository holds two parallel source trees (`guava/` and `android/guava/`), and the mapper keys classes by simple name (Next steps, item 6), so edges from one tree land on the other copy. A ceiling of 0.10 shows that the mapper cannot be used as-is on repositories with duplicate trees, not that its graph is 90 percent empty.
 - Limits: 12 entries per repository; the minimum-closure filter favors larger closures; the key is not compiler-checked; this measures the ceiling only, and the agent trials of Findings 16 and 17 remain on the three development questions.
 
+## Finding 22: keeping same-named classes apart (mapper and answer key; no model)
+
+Everything above was measured with the mapper at commit `0a12d5c`. Check out that commit to reproduce Findings 1 to 21; the mapper changed afterwards.
+
+**Defect in the mapper.** Java classes were keyed by simple name, so a later class silently replaced an earlier one. 21 percent of dagger's Java files and 99 percent of guava's share a file name with another file.
+
+**Same defect in the answer key.** `java_reference.py` kept the first file seen for a duplicated class. On guava, 3,781 of 3,792 key references from `guava/src` into a guava source tree pointed into the `android/` copy. The dagger reference sets of the three flow questions (Findings 14 to 17) are identical with the fixed key, so those scores stand.
+
+**Changes.** A node id is the simple name when unique, else package-qualified, else prefixed with the source root (two trees can declare the same package, so a package alone does not separate guava's). References resolve in Java's order: same file, single-type import, same package, wildcard import, then a project-unique name. An import of a library class no longer links to a project class of the same name. Between copies in different trees the one sharing the longest leading path wins; if that cannot decide, no edge is made and the answer footer says so. `closure` names the class it picked when a name means several. The key now also prefers the copy with the longest shared path.
+
+**Offline results**, fixed key, same random entries as Finding 21 (12 per repository, seed 20), old graph against new:
+
+| Repository | Recall | Precision | Direct file edges confirmed by the key |
+| :--- | :--- | :--- | :--- |
+| dagger | 233/306 = 0.76 to 262/306 = 0.86 | 233/280 = 0.83 to 262/274 = 0.96 | 0.846 to 0.959 |
+| guava | 29/287 = 0.10 to 203/287 = 0.71 | 29/63 = 0.46 to 203/223 = 0.91 | 0.499 to 0.882 |
+| gson | 231/328 = 0.70, unchanged | 1.00, unchanged | 0.995 to 1.000 |
+
+On the three dagger development questions recall stayed at 73/87 = 0.84 and precision went from 73/99 = 0.74 to 73/79 = 0.92. With the old key the new guava graph scored 82/287 = 0.29, which is the key defect showing. The old graph scores 0.10 with either key, so Finding 21's statement about the old mapper holds. Rows are in `data/heldout-ceiling-*-v2.json`.
+
+**Memory and build time** (guava, about 3,300 Java files, one or two runs on one WSL machine). The old build kept every parse tree and peaked at about 1.5 GB in 23 to 32 s. Above 2,000 Java files the mapper now re-parses instead of keeping trees: 208 MB peak, 55 to 58 s, identical graph. Below that it keeps them (dagger: about 300 MB, 6 to 7.5 s against 3.7 s before; gson about 3 s). `CODEMAP_KEEP_TREES_MAX` moves the threshold.
+
+**Output size.** `closure` no longer repeats the class name already in the path, or the entry file on first-hop lines. On one dagger question the answer went from 5,314 to 3,987 bytes (bytes, not tokens). The output quoted in earlier findings is the old format.
+
+**Limits.** The mapper and the key now use a similar rule to choose between source trees, so they can be wrong together; no compiler-derived key covers a repository with twin trees. No agent was run against the new mapper, so nothing here says agents do better with it. Memory was not measured beyond guava's size.
+
 ## Related work
 
 I read LogicLens and codebadger in full (text supplied by the author). The community tools below were read as listings only. This is not a survey of the wider literature.
@@ -884,7 +912,7 @@ Conditions: A search only, B graph with a soft nudge, C graph with a strong nudg
 3. Put a flagged blind spot in front of the agents (the nudge test of Finding 19 ran without it and could not test calibration): a task whose closure contains reflection-wired or framework-wired files, a planted dependency the build cannot catch, and the `UNVERIFIED:` line. Use harder questions so that recall is below 1.00 and there is something to flag.
 4. Test the effect of repository size on a very large monolith, where search returns long match lists.
 5. Add Python class-usage edges: the yapf graph named no dependents.
-6. Key classes by package-qualified name so same-named classes stop collapsing in the mapper.
+6. Done in Finding 22 (package, then source root). Still open: check the twin-tree rule against compiled output, and rerun agent trials on the new mapper.
 7. Check the name-resolving key and the static-import change against a compiler on a second repository.
 8. Compare `merge-graphs` and the manifest edges on a set of repositories that contains real dependencies, and test whether the hierarchy answers questions.
 9. Add a dependency scope tag (runtime, test, benchmark) to the manifest edges.
