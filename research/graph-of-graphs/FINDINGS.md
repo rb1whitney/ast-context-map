@@ -584,6 +584,16 @@ Conditions: G0 graph present, no mention; G1 the rule `graphify antigravity inst
 What this finding supports: with Claude Code's installer defaults, the combination of `CLAUDE.md` section and hook moved graph use from none to every run; with Antigravity only an enforcing PreToolUse hook did. What it does not support: that using the graph improves answers (it did not here), that "MANDATORY" wording or the calibration rule changes verification, or that any nudge makes agents report the graph's blind spots.
 
 
+### Follow-up: Graphify's opt-in strict install (condition N5, pre-registered, not yet run)
+
+The results above test only Graphify's default install, whose hooks never deny a call. Graphify 0.9.86 also has `graphify install --project --strict`, which keeps the soft search hook but makes the Read and Glob hook deny the first raw file read of a session once, redirecting to `graphify query`, then fall back to the soft nudge (checked without a model: the first `Read` payload was denied with that redirect, the next one got only the soft message). N5 is that install, built from the real installer in a fresh sandbox with `HOME` redirected, and run on the same three questions, three repeats, model and allow-list as N0 to N4 (9 runs). The project install also writes a project-level `.claude/CLAUDE.md` and a Graphify skill under `.claude/skills/`, which N3 does not have; that is part of the product tested and a difference from N3. Hook firings are logged as before, and a run with no logged firing is invalid.
+
+Readings fixed before running:
+- **Strict mode raises graph use at the start** if the graph is the first call in at least 8 of 9 N5 runs (N3: 7 of 9) and used in 9 of 9.
+- **It does not change accuracy** if median recall is within 0.04 of N3's (0.96), that is 0.92 or higher.
+- **It changes cost** only if median cost differs from N3's ($0.017) by more than 25 percent; otherwise no cost effect is claimed.
+- A denied first read that the agent then circumvents (no `graphify query` in the run) is reported as such.
+
 ## Finding 20: when does a map beat search, and can a hook decide? (kubernetes)
 
 Status: the key, questions, hook and harness were built and tested, then the pre-registered trial was run on Claude Code and Antigravity. Results follow the design.

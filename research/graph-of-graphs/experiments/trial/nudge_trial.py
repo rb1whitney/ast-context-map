@@ -9,6 +9,7 @@ condition gives the agent; the repository itself is read through --add-dir, so n
   N2  the PreToolUse hooks that `graphify claude install` writes
   N3  both (the installer default)
   N4  N3 plus a calibration rule appended to CLAUDE.md
+  N5  the opt-in strict install, `graphify install --project --strict` (the first raw Read per session is denied once)
 
 The sandbox files are produced by running the real installer, then removing the parts a condition does not get, so the
 test is of the installed product and not of a copy of its text. Hooks are wrapped in a logger so a run records whether
@@ -41,7 +42,7 @@ import trial  # noqa: E402  (parse_stream, parse_unverified, prf, SUFFIX live th
 
 LAB = trial.LAB
 REPO = "dagger"
-CONDS = ["N0", "N1", "N2", "N3", "N4"]
+CONDS = ["N0", "N1", "N2", "N3", "N4", "N5"]
 CALIBRATION = (
     "\n- The graph lists candidate files. It does not see annotation-driven or reflection-wired uses and it can miss "
     "some static references. Treat its list as a starting point: verify with at least one search before you answer, "
@@ -50,10 +51,10 @@ CALIBRATION = (
 ONE_COMMAND = " Run one command per tool call (no cd, shell variables, pipes or loops)."
 HOOK_SCRIPT = """#!/usr/bin/env bash
 # Logs each hook invocation, then runs the real guard. Output of the guard is passed through unchanged.
-kind="$1"
+kind="$*"
 input="$(cat)"
 log="$(dirname "$0")/hooks.log"
-out="$(printf '%s' "$input" | {graphify} hook-guard "$kind")"
+out="$(printf '%s' "$input" | {graphify} hook-guard $kind)"
 printf '%s\\t%s\\t%s\\n' "$kind" "$(printf '%s' "$input" | tr -d '\\n' | cut -c1-200)" "$(printf '%s' "$out" | tr -d '\\n' | cut -c1-120)" >> "$log"
 printf '%s' "$out"
 """
@@ -68,20 +69,26 @@ def make_sandbox(cond: str) -> Path:
     if cond == "N0":
         return sandbox
     subprocess.run(["git", "init", "-q", str(sandbox)], check=True)
-    subprocess.run([graphify, "claude", "install"], cwd=sandbox, capture_output=True, text=True, check=True)
+    if cond == "N5":  # project-scoped strict install; HOME is redirected so the user's own ~/.claude is untouched
+        home = tempfile.mkdtemp(prefix="nudge-home-")
+        subprocess.run([graphify, "install", "--project", "--strict", "--platform", "claude"], cwd=sandbox,
+                       env={**os.environ, "HOME": home}, capture_output=True, text=True, check=True)  # fmt: skip
+        shutil.rmtree(home, ignore_errors=True)
+    else:
+        subprocess.run([graphify, "claude", "install"], cwd=sandbox, capture_output=True, text=True, check=True)
     claude_md, settings = sandbox / "CLAUDE.md", sandbox / ".claude" / "settings.json"
     if cond == "N1":
         shutil.rmtree(sandbox / ".claude")
     elif cond == "N2":
         claude_md.unlink()
-    if cond in ("N2", "N3", "N4"):
+    if cond in ("N2", "N3", "N4", "N5"):
         script = sandbox / "hook_log.sh"
         script.write_text(HOOK_SCRIPT.replace("{graphify}", graphify))
         script.chmod(0o755)
         data = json.loads(settings.read_text())
         for entry in data["hooks"]["PreToolUse"]:
             for hook in entry["hooks"]:
-                kind = hook["command"].rsplit(" ", 1)[-1]
+                kind = hook["command"].split("hook-guard ", 1)[1]  # "search", "read" or "read --strict"
                 hook["command"] = f"bash {script} {kind}"
         settings.write_text(json.dumps(data, indent=2))
     if cond == "N4":
@@ -141,7 +148,7 @@ def run(args) -> None:
         fired = len(parsed["hook_log"])
         note = f"   hooks fired: {fired}" + (f"   DENIED: {denied}" if denied else "")
         print(f"{out.name}: running cost ${total:.3f}{note}")
-        if cond in ("N2", "N3", "N4") and not fired and not parsed.get("is_error"):
+        if cond in ("N2", "N3", "N4", "N5") and not fired and not parsed.get("is_error"):
             print("   WARNING: hooks never fired in a hook condition; this run is invalid")
         if denied and args.stop_on_denial:
             sys.exit(f"stopping: {out.name} had {denied} denied call(s); check the allow-rule, then use a fresh --results-dir")
@@ -196,7 +203,7 @@ def score(args) -> None:
             continue
         d.setdefault("condition", cond)
         s = summarize(d, ref_by_q[int(q[1:])])
-        s["invalid"] = cond in ("N2", "N3", "N4") and s["hooks"] == 0
+        s["invalid"] = cond in ("N2", "N3", "N4", "N5") and s["hooks"] == 0
         rows[cond].append(s)
     head = (f"{'cond':4} {'n':>2} {'inval':>5} {'den':>3} {'graph':>5} {'first':>5} {'gcalls':>6} {'srch+':>5} {'read+':>5} "
             f"{'hooks':>5} {'flag/miss':>9} {'overconf':>8} {'cost$':>6} {'turns':>5} {'prec':>5} {'rec':>5} {'F1 med (min-max)':>18}")  # fmt: skip
