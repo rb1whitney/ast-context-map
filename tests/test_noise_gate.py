@@ -42,7 +42,7 @@ def test_noisy_search_denied_once_then_allowed(tmp_path):
 def test_map_command_clears_gate(tmp_path):
     r = repo(tmp_path, 5)
     e = env(tmp_path, r)
-    assert ng.decide({"tool_name": "Bash", "tool_input": {"command": "python3 x/semantic_query.py find-usages a"}}, e)[2] == "map-command"
+    assert ng.decide({"tool_name": "Bash", "tool_input": {"command": "python3 x/semantic_query.py find-usages a"}}, e)[2] == "map-command"  # noqa: E501
     assert ng.decide(claude("a/b"), e)[2] == "map-already-used"
 
 

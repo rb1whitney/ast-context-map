@@ -16,5 +16,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install -r requirements.txt
+      - run: pip install ruff==0.15.11 && ruff check .
       - run: python -m pytest -q
       - run: python benchmarks/token_compare.py

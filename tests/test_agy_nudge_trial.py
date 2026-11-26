@@ -14,7 +14,7 @@ def stream(events):
 
 def tool(idx, name, **params):
     return {"event": "step_update", "step_update": {"step_index": idx, "state": "DONE", "step_type": "tool",
-                                                    "tool_name": name, "tool_info": {"parameters": params}}}  # fmt: skip
+                                                    "tool_name": name, "tool_info": {"parameters": params}}}  # fmt: skip  # noqa: E501
 
 
 def text(idx, delta):
@@ -25,7 +25,7 @@ def text(idx, delta):
 
 
 RESULT = {"event": "result", "result": {"status": "SUCCESS", "response": "ignored", "num_turns": 2,
-                                        "usage": {"input_tokens": 100, "output_tokens": 10, "cache_read_tokens": 900, "total_tokens": 110}}}  # fmt: skip
+                                        "usage": {"input_tokens": 100, "output_tokens": 10, "cache_read_tokens": 900, "total_tokens": 110}}}  # fmt: skip  # noqa: E501
 
 
 def test_parse_events_maps_tools_and_picks_the_last_answer_with_files():
@@ -43,7 +43,7 @@ def test_parse_events_maps_tools_and_picks_the_last_answer_with_files():
 
 
 def test_summarize_reads_agy_runs_through_the_shared_scorer():
-    parsed = at.parse_events(stream([tool(2, "run_command", CommandLine='graphify query "X"'), tool(4, "grep_search", Query="X"),
+    parsed = at.parse_events(stream([tool(2, "run_command", CommandLine='graphify query "X"'), tool(4, "grep_search", Query="X"),  # noqa: E501
                                      text(5, "FILE: a/A.java\nUNVERIFIED: none"), RESULT]))  # fmt: skip
     s = nt.summarize(parsed, {"a/A.java", "b/B.java"})
     assert (s["graph"], s["graph_first"], s["searches_after"]) == (True, True, 1)

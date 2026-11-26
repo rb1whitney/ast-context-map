@@ -9,7 +9,7 @@ Wire it in `<workspace>/.agents/hooks.json`:
 
 ```json
 {"hooks": {"PreToolUse": [{"matcher": "run_command|grep_search|find_by_name",
-  "hooks": [{"type": "command", "command": "GRAPH_GATE_LOG=/tmp/gate.log python3 /path/to/graph_gate.py", "timeout": 10}]}]}}
+  "hooks": [{"type": "command", "command": "GRAPH_GATE_LOG=$HOME/.local/state/graph_gate.log python3 /path/to/graph_gate.py", "timeout": 10}]}]}}
 ```
 
 | Variable | Default | Meaning |
@@ -19,7 +19,7 @@ Wire it in `<workspace>/.agents/hooks.json`:
 | `GRAPH_GATE_HINT` | `graphify query "<question>"` | Command named in the denial |
 | `GRAPH_GATE_NOTE` | empty | Extra sentence appended to the denial, for example a verify-before-answering rule |
 | `GRAPH_GATE_MAX_DENIES` | `1` | Denials allowed per state file, so a failing graph command cannot deadlock the agent |
-| `GRAPH_GATE_STATE` | `<workspace>/.graph_gate_state` | State file |
+| `GRAPH_GATE_STATE` | a private per-user temp directory, one file per workspace | State file |
 | `GRAPH_GATE_LOG` | unset | Append-only decision log |
 
 ## What is verified

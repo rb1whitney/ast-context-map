@@ -1,0 +1,9 @@
+line-length = 120
+target-version = "py310"
+
+[lint]
+select = ["E", "F", "I"]
+
+[lint.per-file-ignores]
+# Research scripts are the record of what produced the published numbers; they are not reformatted after the fact.
+"research/**" = ["E501", "E702", "E731", "E741"]

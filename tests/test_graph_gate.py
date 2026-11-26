@@ -91,4 +91,4 @@ def test_relative_graph_path_resolves_against_payload_workspace(tmp_path):
         env={"PATH": "/usr/bin:/bin"},
     )
     assert json.loads(done.stdout)["decision"] == "deny"
-    assert (tmp_path / ".graph_gate_state").exists()
+    assert not (tmp_path / ".graph_gate_state").exists()  # state must not live where the repository can plant a link

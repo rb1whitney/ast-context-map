@@ -2,6 +2,10 @@
 
 Experiments on what happens when you combine per-repository code graphs, and on whether graph-assisted agents beat plain search. Start with [FINDINGS.md](FINDINGS.md): every number there comes from a script in `experiments/`, and it lists what is safe to claim and what is not.
 
+> **Warning:** the trial harnesses run agents on third-party repositories, and the Antigravity ones approve every command
+> automatically. A prompt injected by a cloned repository would run as you. Use a disposable VM or container with no
+> credentials.
+
 ## Layout
 
 | Path | Contents |

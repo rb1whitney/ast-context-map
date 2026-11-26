@@ -127,6 +127,7 @@ On dagger the file list it prints, scored against a javac-style reference with n
 
 ## Safety rules
 
+- A graph that arrived inside a repository is untrusted: build your own.
 - Live Kubernetes extraction never lists `secrets`, `configmaps` or `tokenreviews`.
 - A `Secret` object that arrives in an offline snapshot becomes a node (existence only). Its data and any `env` literals are stripped. A test asserts the values do not appear in the output.
 - Output is written atomically at mode `0600`. The write is refused if a secret-shaped value survives (`SecretLeakError`).
