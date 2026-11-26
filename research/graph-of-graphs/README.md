@@ -49,7 +49,7 @@ python3 ../../scripts/code_mapper.py gson --force --out-dir experiments/trial/gr
 python3 experiments/trial/trial.py run --pilot --dry-run   # prints the commands without running them
 ```
 
-Each run has a hard dollar cap (`--cap`) and the whole trial stops at `--total-cap`. Every trial used the smallest model; all 233 saved Claude runs cost $2.61 in total (plus 173 Antigravity runs, reported in tokens). The full reproduce list, including the answer-key scripts and the closure trial, is at the end of [FINDINGS.md](FINDINGS.md).
+Each run has a hard dollar cap (`--cap`) and the whole trial stops at `--total-cap`. Every trial used the smallest model; all 233 saved Claude runs cost $2.62 in total (plus 173 Antigravity runs, reported in tokens). The full reproduce list, including the answer-key scripts and the closure trial, is at the end of [FINDINGS.md](FINDINGS.md).
 
 ## Caveats
 

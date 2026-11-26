@@ -10,6 +10,22 @@ Merging per-repository code graphs does not make a graph of graphs. It makes a b
 
 For agents, a graph tool changes the trade between cost and completeness, and the trade depends on the graph and on the shape of the tool. With the first mapper, agents were cheaper than search but found about half of the right files (recall 0.48 against 0.96), largely because the graph was missing data: annotation types and static imports. Fixing the mapper raised recall to 0.78 but erased the cost advantage, because agents walked the graph one hop at a time (33 queries and 36 turns, against 20 turns for search). A single `closure` call with a coverage footer cut the cost to $0.004 a run (a third of search) and input tokens to an eighth, at F1 0.84 against 0.94. Where the prompt named the graph (Findings 9, 16, 17) the agents answered from it in every run and mostly did not verify, even when told to; with no mention at all they did not use it (Finding 19), and what they did after a map answer depended on the harness and on the footer (Finding 20). Which answer key is used can decide the winner: a grep-built key favors search, a compiler-derived key favored the graph on gson.
 
+## Headline results
+
+Dagger flow numbers use the primary key (Finding 14). Everything is one small model per harness and a handful of questions; read each row with its limits in the finding cited.
+
+| Question | Result | Finding |
+| :--- | :--- | :--- |
+| Does merging per-repository graphs make a graph of graphs? | No. Merged edges equal the sum of the inputs, with 0 direct cross-repository edges (expected: the repositories are independent); bridges are standard-library names; build manifests give 7 real edges among 20 repositories. | 2, 3, 4 |
+| Graph agents against search on two-hop questions (dagger) | Search: F1 0.94, $0.013, 20 turns, 54.5 s per run. First mapper: 0.65 (recall 0.48). Rebuilt mapper, one-hop tools: 0.88 (recall 0.78), same cost, 36 turns. `closure` tool: 0.84 (recall 0.83), $0.004, 2 turns, 10.5 s. | 14, 16, 17 |
+| Does the answer key change the ranking? | Yes: on gson, search scored 1.00 against a grep-built key and 0.84 against compiled dependencies; the graph 0.89 and 1.00. | 11 |
+| Is the mapper's 0.84 ceiling real? | Lower on held-out entries: 0.76 pooled on dagger and 0.70 on gson (random entries); unusable on guava (0.10, duplicate source trees). | 21 |
+| Do agents use a map unprompted? | No: 0 of 9 Claude runs and 0 of 9 Antigravity runs. Claude's `CLAUDE.md` section plus hook: 9 of 9 (graph first in 7). Antigravity: installer rule 0 of 9, a blocking PreToolUse gate 9 of 9. | 19 |
+| Does using the map change accuracy? | Not when it is complete: recall 0.92 to 0.96 on Claude in every condition; F1 1.00 in every kubernetes cell. It does when the map is incomplete (recall tracked the graph's ceiling). | 10, 19, 20 |
+| What does a map change when it is exact (kubernetes import questions)? | Cost. High-noise questions, median: Claude 0.72 of search when the map was named; Antigravity 0.44 (named) and 0.65 (noise gate) of search after the footer fix, against 1.43 and 1.49 before it. | 20 |
+| Does the tool's footer matter? | On Antigravity, replacing "verify" advice with "complete for those files" took mean searches from 5.0 to 0.25 (one before and after pair; Claude not rerun). | 20 |
+| Does Graphify's opt-in strict install change use? | Not yet known. The first attempt never triggered the hook (0 denials in 9 runs, wrong sandbox); the corrected runs (N3c, N5c) were pre-registered and are in progress. | 19 |
+
 ## Status of the findings
 
 | Finding | Topic | Status |
@@ -526,7 +542,7 @@ Questions: the three dagger flow questions in `questions_flow_v2.json` (name-res
 
 Measured per run: whether and when the graph was queried, searches and file reads after it, F1 against the key, cost, turns, whether the hook fired (logged), and calibration: for answers that miss reference files, whether the agent flagged uncertainty. Report denied calls and runs where the hook did not fire as invalid, not as zeros.
 
-Planned size: 5 conditions, 3 questions, 3 repeats, 45 runs. Prior graph runs cost $0.013 to $0.04 each, so $0.6 to $1.8 is an estimate, not a measurement. The user launches the paid run; each run has a dollar cap and the trial stops at a total cap.
+Planned size: 5 conditions, 3 questions, 3 repeats, 45 runs. Prior graph runs cost $0.013 to $0.04 each, so $0.6 to $1.8 was an estimate; the 45 runs cost $0.764. Each run had a dollar cap and the trial stopped at a total cap.
 
 Harness: `experiments/trial/nudge_trial.py`. Each run gets a new sandbox directory that holds only what the condition gives the agent. The sandbox files come from running the real `graphify claude install` and then removing the parts a condition does not get, so the product is tested and not a copy of its text. The hooks are wrapped in a logger that records each firing, and a hook-condition run with no firing is scored as invalid. All conditions use the same answer format, including the `UNVERIFIED:` line, and the same allow-list (`Read`, `Grep`, `Glob`, `graphify` and `ls` through Bash; `ls` was added after an N1 run followed the CLAUDE.md rule and was denied `ls graphify-out`). Checked without a model call: the five sandboxes hold the intended files, the wrapper passes the guard's output through and logs it, and `graphify query` runs offline on the dagger graph (21,980 nodes; its output is cut at about 2,000 tokens and says so). Unit tests cover the scoring (`tests/test_nudge_trial.py`).
 
@@ -577,7 +593,7 @@ Conditions: G0 graph present, no mention; G1 the rule `graphify antigravity inst
 - **A rule that only talks about the graph's gaps got a third of the runs to query it** (G4, 3 of 9).
 - **Calibration could not be tested.** Recall was 1.00 in all five conditions: no valid run missed a key file, so there was nothing to flag, and "flagged when missed" is 0 of 0 everywhere. Whether the gaps wording changes what an agent reports when the graph is wrong is untested.
 - Cost: the gate with the gaps note (G3) used 14 percent more tokens than no nudge (224,447 against 197,054); the other conditions were within 9 percent.
-- (An earlier version of this finding gave "about 9.0 million" tokens, estimated from per-condition figures; the measured sum is 12.15 million.) The two harnesses are not comparable cell by cell: different models, tools, rules and hook mechanisms.
+- The two harnesses are not comparable cell by cell: different models, tools, rules and hook mechanisms. (An earlier version of this finding gave "about 9.0 million" tokens, estimated from per-condition figures; the measured sum is 12.15 million.)
 
 What this finding supports: with Claude Code's installer defaults, the combination of `CLAUDE.md` section and hook moved graph use from none to every run; with Antigravity only an enforcing PreToolUse hook did. What it does not support: that using the graph improves answers (it did not here), that "MANDATORY" wording or the calibration rule changes verification, or that any nudge makes agents report the graph's blind spots.
 
