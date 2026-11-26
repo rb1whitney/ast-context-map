@@ -1,0 +1,74 @@
+[
+ {
+  "entry": "android/guava/src/com/google/common/eventbus/SubscriberExceptionContext.java",
+  "ref": 12,
+  "in_graph": 12,
+  "hit": 6
+ },
+ {
+  "entry": "guava-gwt/src-super/com/google/common/collect/super/com/google/common/collect/UnmodifiableSortedMultiset.java",
+  "ref": 28,
+  "in_graph": 24,
+  "hit": 5
+ },
+ {
+  "entry": "android/guava-testlib/src/com/google/common/collect/testing/testers/MapPutIfAbsentTester.java",
+  "ref": 11,
+  "in_graph": 10,
+  "hit": 5
+ },
+ {
+  "entry": "guava-testlib/src/com/google/common/collect/testing/google/SortedSetMultimapTestSuiteBuilder.java",
+  "ref": 80,
+  "in_graph": 78,
+  "hit": 0
+ },
+ {
+  "entry": "android/guava/src/com/google/common/collect/HashBiMap.java",
+  "ref": 22,
+  "in_graph": 17,
+  "hit": 5
+ },
+ {
+  "entry": "android/guava-testlib/src/com/google/common/collect/testing/testers/MapRemoveEntryTester.java",
+  "ref": 11,
+  "in_graph": 10,
+  "hit": 5
+ },
+ {
+  "entry": "guava/src/com/google/common/base/Equivalence.java",
+  "ref": 12,
+  "in_graph": 11,
+  "hit": 0
+ },
+ {
+  "entry": "guava/src/com/google/common/base/Functions.java",
+  "ref": 11,
+  "in_graph": 9,
+  "hit": 0
+ },
+ {
+  "entry": "guava/src/com/google/common/collect/EmptyContiguousSet.java",
+  "ref": 57,
+  "in_graph": 52,
+  "hit": 0
+ },
+ {
+  "entry": "android/guava/src/com/google/common/primitives/UnsignedInts.java",
+  "ref": 12,
+  "in_graph": 10,
+  "hit": 2
+ },
+ {
+  "entry": "guava/src/com/google/common/collect/FilteredKeyListMultimap.java",
+  "ref": 20,
+  "in_graph": 18,
+  "hit": 0
+ },
+ {
+  "entry": "android/guava/src/com/google/common/util/concurrent/Uninterruptibles.java",
+  "ref": 11,
+  "in_graph": 10,
+  "hit": 0
+ }
+]

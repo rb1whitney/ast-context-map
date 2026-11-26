@@ -1,0 +1,113 @@
+{
+  "gson": [
+    {
+      "symbol": "JsonPrimitive",
+      "reference": [
+        "extras/src/main/java/com/google/gson/typeadapters/RuntimeTypeAdapterFactory.java",
+        "gson/src/main/java/com/google/gson/JsonArray.java",
+        "gson/src/main/java/com/google/gson/JsonElement.java",
+        "gson/src/main/java/com/google/gson/JsonObject.java",
+        "gson/src/main/java/com/google/gson/JsonPrimitive.java",
+        "gson/src/main/java/com/google/gson/JsonSerializer.java",
+        "gson/src/main/java/com/google/gson/LongSerializationPolicy.java",
+        "gson/src/main/java/com/google/gson/internal/bind/JsonElementTypeAdapter.java",
+        "gson/src/main/java/com/google/gson/internal/bind/JsonTreeReader.java",
+        "gson/src/main/java/com/google/gson/internal/bind/JsonTreeWriter.java",
+        "gson/src/main/java/com/google/gson/internal/bind/MapTypeAdapterFactory.java",
+        "proto/src/main/java/com/google/gson/protobuf/StructTypeAdapter.java"
+      ],
+      "definition_file": "gson/src/main/java/com/google/gson/JsonPrimitive.java",
+      "prompt": "List the non-test source files that use `JsonPrimitive`."
+    },
+    {
+      "symbol": "JsonParseException",
+      "reference": [
+        "extras/src/main/java/com/google/gson/interceptors/Intercept.java",
+        "extras/src/main/java/com/google/gson/typeadapters/RuntimeTypeAdapterFactory.java",
+        "extras/src/main/java/com/google/gson/typeadapters/UtcDateTypeAdapter.java",
+        "gson/src/main/java/com/google/gson/JsonDeserializationContext.java",
+        "gson/src/main/java/com/google/gson/JsonDeserializer.java",
+        "gson/src/main/java/com/google/gson/JsonIOException.java",
+        "gson/src/main/java/com/google/gson/JsonParseException.java",
+        "gson/src/main/java/com/google/gson/JsonParser.java",
+        "gson/src/main/java/com/google/gson/JsonStreamParser.java",
+        "gson/src/main/java/com/google/gson/JsonSyntaxException.java",
+        "gson/src/main/java/com/google/gson/ToNumberPolicy.java",
+        "gson/src/main/java/com/google/gson/internal/ConstructorConstructor.java",
+        "gson/src/main/java/com/google/gson/internal/Streams.java",
+        "gson/src/main/java/com/google/gson/internal/bind/MapTypeAdapterFactory.java",
+        "gson/src/main/java/com/google/gson/internal/bind/ReflectiveTypeAdapterFactory.java",
+        "gson/src/main/java/com/google/gson/internal/bind/TreeTypeAdapter.java",
+        "proto/src/main/java/com/google/gson/protobuf/LegacyProtoTypeAdapterFactory.java",
+        "proto/src/main/java/com/google/gson/protobuf/ProtoTypeAdapter.java"
+      ],
+      "definition_file": "gson/src/main/java/com/google/gson/JsonParseException.java",
+      "prompt": "Which non-test source files would need review if the public API of `JsonParseException` changed?"
+    },
+    {
+      "symbol": "JsonObject",
+      "reference": [
+        "extras/src/main/java/com/google/gson/typeadapters/RuntimeTypeAdapterFactory.java",
+        "gson/src/main/java/com/google/gson/GsonBuilder.java",
+        "gson/src/main/java/com/google/gson/JsonElement.java",
+        "gson/src/main/java/com/google/gson/JsonParser.java",
+        "gson/src/main/java/com/google/gson/internal/bind/JsonElementTypeAdapter.java",
+        "gson/src/main/java/com/google/gson/internal/bind/JsonTreeReader.java",
+        "gson/src/main/java/com/google/gson/internal/bind/JsonTreeWriter.java",
+        "proto/src/main/java/com/google/gson/protobuf/ProtoTypeAdapter.java",
+        "proto/src/main/java/com/google/gson/protobuf/StructTypeAdapter.java"
+      ],
+      "definition_file": "gson/src/main/java/com/google/gson/JsonObject.java",
+      "prompt": "List the non-test source files that depend on `JsonObject`, excluding the file that defines it."
+    }
+  ],
+  "yapf": [
+    {
+      "symbol": "Leaf",
+      "reference": [
+        "third_party/yapf_third_party/_ylib2to3/fixer_util.py",
+        "third_party/yapf_third_party/_ylib2to3/patcomp.py",
+        "third_party/yapf_third_party/_ylib2to3/pytree.py",
+        "yapf/pytree/comment_splicer.py",
+        "yapf/pytree/continuation_splicer.py",
+        "yapf/pytree/pytree_unwrapper.py",
+        "yapf/pytree/pytree_utils.py",
+        "yapf/pytree/pytree_visitor.py",
+        "yapf/pytree/split_penalty.py",
+        "yapf/pytree/subtype_assigner.py",
+        "yapf/yapflib/format_token.py",
+        "yapf/yapflib/reformatter.py"
+      ],
+      "definition_file": "third_party/yapf_third_party/_ylib2to3/pytree.py",
+      "prompt": "List the non-test source files that use `Leaf`."
+    },
+    {
+      "symbol": "Node",
+      "reference": [
+        "third_party/yapf_third_party/_ylib2to3/fixer_util.py",
+        "third_party/yapf_third_party/_ylib2to3/patcomp.py",
+        "third_party/yapf_third_party/_ylib2to3/pytree.py",
+        "yapf/pytree/blank_line_calculator.py",
+        "yapf/pytree/comment_splicer.py",
+        "yapf/pytree/continuation_splicer.py",
+        "yapf/pytree/pytree_utils.py",
+        "yapf/pytree/pytree_visitor.py",
+        "yapf/pytree/subtype_assigner.py",
+        "yapf/yapflib/yapf_api.py"
+      ],
+      "definition_file": "third_party/yapf_third_party/_ylib2to3/pytree.py",
+      "prompt": "Which non-test source files would need review if the public API of `Node` changed?"
+    },
+    {
+      "symbol": "YapfError",
+      "reference": [
+        "yapf/__init__.py",
+        "yapf/yapflib/file_resources.py",
+        "yapf/yapflib/style.py",
+        "yapf/yapflib/yapf_api.py"
+      ],
+      "definition_file": "yapf/yapflib/errors.py",
+      "prompt": "List the non-test source files that depend on `YapfError`, excluding the file that defines it."
+    }
+  ]
+}
