@@ -6,7 +6,7 @@ Evidence for an article on combining ast-grep, the semantic code graph, and Grap
 
 Merging per-repository code graphs does not make a graph of graphs. It makes a bigger graph that is too large to use as agent context, and whose cross-repository links are mostly shared standard-library names. Real cross-repository edges come from package manifests, and a usable multi-repository view needs a hierarchy and a budget.
 
-For agents, a graph tool changes the trade between cost and completeness, and the trade depends on the graph and on the shape of the tool. With the first mapper, agents were cheaper than search but found about half of the right files (recall 0.48 against 0.96), largely because the graph was missing data: annotation types and static imports. Fixing the mapper raised recall to 0.78 but erased the cost advantage, because agents walked the graph one hop at a time (33 queries and 36 turns, against 20 turns for search). A single `closure` call with a coverage footer cut the cost to $0.004 a run (a third of search) and input tokens to an eighth, at F1 0.84 against 0.94. In every logged run the agents answered from the graph and did not verify, even when told to. Which answer key is used can decide the winner: a grep-built key favors search, a compiler-derived key favored the graph on gson.
+For agents, a graph tool changes the trade between cost and completeness, and the trade depends on the graph and on the shape of the tool. With the first mapper, agents were cheaper than search but found about half of the right files (recall 0.48 against 0.96), largely because the graph was missing data: annotation types and static imports. Fixing the mapper raised recall to 0.78 but erased the cost advantage, because agents walked the graph one hop at a time (33 queries and 36 turns, against 20 turns for search). A single `closure` call with a coverage footer cut the cost to $0.004 a run (a third of search) and input tokens to an eighth, at F1 0.84 against 0.94. Where the prompt named the graph (Findings 9, 16, 17) the agents answered from it in every run and mostly did not verify, even when told to; with no mention at all they did not use it (Finding 19), and what they did after a map answer depended on the harness and on the footer (Finding 20). Which answer key is used can decide the winner: a grep-built key favors search, a compiler-derived key favored the graph on gson.
 
 ## Status of the findings
 
@@ -31,7 +31,7 @@ For agents, a graph tool changes the trade between cost and completeness, and th
 | 17 | Closure trial | Current |
 | 18 | Build time against Graphify | Current; indicative, not a controlled benchmark |
 | 19 | Graphify nudge probe and nudge trials (Claude Code and Antigravity) | Current; graph use depends on the nudge, recall did not change, calibration not testable on these questions |
-| 20 | Map versus search by search noise, with a noise-gated hook (kubernetes) | Current; F1 1.00 in every cell, so the map changed cost, not accuracy |
+| 20 | Map versus search by search noise, with a noise-gated hook (kubernetes) | Current; F1 1.00 in every cell, so the map changed cost, not accuracy; the Antigravity cost penalty came from the footer (rerun) |
 
 ## Runs and cost
 
@@ -48,6 +48,7 @@ For agents, a graph tool changes the trade between cost and completeness, and th
 | **Total (Claude)** | | **233** | **$2.612** | |
 | dagger flow, nudge test G0 to G4 (Antigravity, `gemini-4-hydrogen-medium`) | 19 | 45 | not reported (about 9.0 million tokens) | `data/trial-nudge-agy-scores.txt` |
 | kubernetes import questions (Antigravity, same model) | 20 | 64 | not reported (4.96 million tokens) | `data/trial-cross-agy-runs.csv` |
+| same, rerun with the exact footer | 20 | 64 | not reported (3.97 million tokens) | `data/trial-cross-agy-v2-runs.csv` |
 
 Claude runs used `claude-haiku-5-5` (from the run files). The Antigravity CLI reports tokens, not dollars, and its pilot (one run, 324,000 tokens) is not in the table. The cost excludes the assistant sessions that built and analysed the experiments and any unsaved interrupted runs.
 
@@ -555,7 +556,7 @@ Against the pre-registered readings:
 
 - **Hypothesis 1 holds.** With the graph in the repository and no mention, the agent never queried it (0 of 9).
 - **Hypothesis 2 holds, and the effect is large.** Graph use went from 0 to 5 of 9 with the `CLAUDE.md` section and to 9 of 9 with the hook. In N2 the agents used the graph in every run but never as the first call: the hook text arrived after they had already searched. The earlier soft task prompt (Finding 9) gave 9 of 9 with the graph first; the installer's own nudge gets there only when `CLAUDE.md` and the hook are combined, and then in 7 of 9.
-- **Hypothesis 3 is not supported as written.** Recall in N3 was not higher than in N0 or N1 (0.96 each), which matches the first clause. The second clause failed: every run in every condition searched after the graph (9 of 9), and the N3 median (10) was above N4's (7), not below. Confidence was not measured, so the "raises confidence" part is untested.
+- **Hypothesis 3 is not supported as written.** Recall in N3 was not higher than in N0 or N1 (0.96 each), which matches the first clause. The second clause failed: every N3 and N4 run used the graph and then searched (9 of 9 each), and the N3 median (10) was above N4's (7), not below. (In N0 and in the four N1 runs that never used the graph, the "searches after the graph" column counts all searches.) Confidence was not measured, so the "raises confidence" part is untested.
 - **Hypothesis 4 is not supported as written.** N4 flagged uncertainty in all 7 answers that missed files, which meets the first bar. N3 flagged 5 of 6, far above the quarter the reading allowed, and N0 flagged 4 of 7. All conditions share one answer format with an `UNVERIFIED:` line, so the format alone produced most of the flagging. The calibration rule moved it from 4 of 7 to 7 of 7, on a handful of answers.
 - **The graph raised use, not accuracy.** Median F1 was 0.94 to 0.96 and recall 0.92 to 0.96 in every condition, including the one that never used the graph. The calibration rule did not reduce misses; N4 recall was the lowest (0.92).
 
@@ -637,25 +638,48 @@ Accuracy did not vary: median F1 was 1.00 in every cell on both harnesses (lowes
 Against the pre-registered readings:
 
 - **The map earns its place: yes on Claude through M, no on Antigravity.** On high-noise questions Claude's M cost $0.0095 against $0.0132 for S (28 percent lower, about $0.004 a run) at equal F1; H did not (it cost $0.0136). Antigravity's M and H cost more than S (111,339 and 115,950 tokens against 77,959).
-- **The gate is sound: yes on Antigravity, no on Claude.** On both harnesses the hook stayed silent on all low-noise searches (0 of 8 map uses) and denied all 8 high-noise H runs; the map was then used in 5 of 8 Claude runs and 8 of 8 Antigravity runs. The cost bar failed on Claude: H on low-noise questions cost $0.0037 against $0.0031 for S, 20 percent more (an absolute difference of $0.0006); on Antigravity it was 31 percent lower (30,179 against 43,447 tokens).
+- **The gate is sound: yes on Antigravity, no on Claude.** On both harnesses the hook stayed silent on all low-noise searches (0 of 8 map uses) and denied all 8 high-noise H runs; the map was then used in 5 of 8 Claude runs and 8 of 8 Antigravity runs. The cost bar failed on Claude: H on low-noise questions cost $0.0037 against $0.0031 for S, 20 percent more (an absolute difference of $0.0006); on Antigravity it was 31 percent lower (30,179 against 43,447 tokens) in this run, but the rerun gave 43,510 against 44,658 for the same condition (hook silent, no map), so that 31 percent was run-to-run variation; the within-10-percent bar holds on both runs.
 - **H+ is better than H: partly.** F1 was not lower. On Claude, 6 of 8 H+ runs read files on high-noise questions against 2 of 8 for H, at a higher mean cost ($0.0159 against $0.0128) and more turns. On Antigravity, 3 of 8 H+ runs read files against 4 of 8 for H, and tokens were higher (131,693 against 115,950). "Read files" is a proxy for "searched inside the mapped files"; the harness did not check that the files read were the ones the map listed.
 
-What the result says: on this question the map did not make answers better. A single `grep -l` for the import path already returned the answer, even at 587 matching files, because the tools return file lists and not file contents. Plain search was as accurate as the exact graph, at a cost within about $0.004 a run (Claude) and between 28 percent lower and 43 percent higher (Antigravity) depending on the condition, so the noise level did not make the map necessary. This supports the view that a map is useful only where search output is too large or too ambiguous to use, and that at kubernetes' scale on this question it is not. The hook did what it was built to do (silent when search is quiet, redirecting when it is noisy), but redirecting did not save anything on Antigravity.
+What the result says: on this question the map did not make answers better. A single `grep -l` for the import path already returned the answer, even at 587 matching files, because the tools return file lists and not file contents. Plain search was as accurate as the exact graph, at a cost within about $0.004 a run (Claude) and, in this first Antigravity run, between 28 percent lower and 43 percent higher depending on the condition, so the noise level did not make the map necessary. The Antigravity rise was largely the footer (see the rerun below). This supports the view that a map is useful only where search output is too large or too ambiguous to use, and that at kubernetes' scale on this question it is not. The hook did what it was built to do (silent when search is quiet, redirecting when it is noisy); in this first run redirecting saved nothing on Antigravity, and the rerun below shows why.
 
 Cause found after the trial, and a confound in it: in every condition where an agent ran the map command, the answer ended with the generic coverage footer ("The graph is syntactic... Verify before changing shared code: git grep -lw <package>"), printed by `semantic_query.py` after the exact importer list. The agents followed it: on Antigravity the mean number of searches on high-noise questions was 5.0 under H against 1.6 under S, and one run re-searched the whole repository directory by directory with 12 `rg` calls after receiving the complete list. So the extra cost under M, H and H+ is at least partly caused by the tool's own advice, not by the map or the gate. The footer has since been changed so that a Go package import list says it is complete and carries no re-search advice (Finding 20 follow-up, `exact_usage_footer`); the trial was not rerun, so the effect of that change is untested. Read the cost comparison above as the cost of the map with the old footer.
 
 Limits specific to these results: F1 reached a ceiling of 1.00 for every condition, so nothing here could show the map helping accuracy or search failing; the noisiest question matched 587 files and the answer was 172 directories, still readable, so a query whose raw hits are in the many thousands, or an ambiguous name, was not tested; the second repeat of each run was near-identical to the first, so the 64 runs per harness hold about 32 outcomes; the Antigravity S condition could not be stopped from finding the map command; Claude's agents could also search with `grep` through Bash because user-level permissions allow it, which is why the gate fired on Bash and Grep both. The two harnesses are not compared with each other.
 
-### Follow-up: agy rerun with the exact footer (pre-registered, not yet run)
+### Follow-up: agy rerun with the exact footer
 
 Why: the first run's map answers ended with a footer that told agents to re-search (see above). `semantic_query.py` now ends a Go import list with "complete for those files; searching again will not add to it". The rerun repeats the Antigravity half of the trial unchanged (same 8 questions, 4 conditions, 2 repeats, `gemini-4-hydrogen-medium`, same prompts, same gate at 100 files) into a separate results directory, so the only intended change is the footer. Condition S never calls the map, so its change from the first run measures run-to-run drift and is the control. The first run stays as the baseline; nothing is overwritten.
 
-Pre-registered readings, fixed before running (high-noise questions, medians unless stated):
+Readings pre-registered before running (high-noise questions, medians unless stated):
 - **The footer explains the extra cost** if M and H each use at most 1.15 times S's tokens and the mean searches per run in M and H are at most 2.5 (they were 1.4 and 5.0, against 1.6 for S, in the first run).
 - **Partly** if M or H tokens fall by at least 20 percent from the first run but stay above 1.15 times S.
 - **Not the cause** if M and H tokens stay within 20 percent of the first run's values (111,339 and 115,950): then the agents' extra work came from the task, the gate message or the model, and the footer change should not be credited.
 - Accuracy: the footer must not lower F1. If median F1 falls below 0.95 in any condition, the claim "complete" is being over-trusted and that is the finding.
 - S's median tokens in the rerun must be within 25 percent of its first-run value (77,959) for the comparison to be read at all; otherwise run-to-run drift is too large for this design to say anything.
+
+#### Rerun results (64 Antigravity runs, all valid)
+
+Per-run rows `data/trial-cross-agy-v2-runs.csv`, table `data/trial-cross-agy-v2-scores.txt`. Same model, questions, prompts and gate; 3.97 million tokens in total; no run errored. Medians on the high-noise questions, 8 runs per cell:
+
+| Condition | Tokens, first run | Tokens, rerun | Rerun divided by S | Mean searches, first | Mean searches, rerun |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| S (control) | 77,959 | 77,042 | 1.00 | 1.62 | 1.50 |
+| M | 111,339 | 33,909 | 0.44 | 1.38 | 0.00 |
+| H | 115,950 | 50,398 | 0.65 | 5.00 | 0.25 |
+| H+ | 131,693 | 115,884 | 1.50 | 3.75 | 3.75 |
+
+On the low-noise questions the rerun medians were S 44,658, M 28,053 (0.63 of S), H 43,510 and H+ 44,471; the hook stayed silent in all 16 H and H+ runs and no map was used there except in M. Median and minimum F1 were 1.00 in every cell.
+
+Against the pre-registered readings:
+- **The footer explains the extra cost: holds for M and H.** M used 0.44 and H 0.65 of S's tokens (bar 1.15) and mean searches were 0.00 and 0.25 (bar 2.5).
+- **Accuracy:** F1 stayed at 1.00 (bar 0.95). This cannot show over-trust, because the answers were complete.
+- **Control:** S moved by 1.2 percent (77,959 to 77,042), inside the 25 percent bar, so the comparison can be read.
+- **H+ is not explained by the footer.** It stayed at 1.50 of S and its mean searches did not change (3.75). Its denial note tells the agent to confirm with a search, which is the likely reason (interpretation, not tested).
+
+Against Claude Code (first run, old footer, not rerun): the Claude M cost was 0.72 of S ($0.0095 against $0.0132), H 1.03 and H+ 1.06. After the fix, Antigravity's M and H are cheaper than S, in the same direction as Claude's M and further than Claude's H; H+ is above S on both. So the footer change brought Antigravity's M and H in line with Claude, and not H+. The cause is attributed to the footer because it was the only intended change and the S control was flat; that is a before and after comparison and not a concurrent randomized one, and the Claude runs still carry the old footer.
+
+Limits: eight runs per cell; four questions each repeated twice; F1 at its ceiling; the first run and the rerun were made hours apart on the same account.
 
 ## Related work
 
@@ -678,20 +702,20 @@ I read LogicLens and codebadger in full (text supplied by the author). The commu
 - Which answer key is used can decide the accuracy ranking. On gson, search scored F1 1.00 against a grep-built key and 0.84 against compiled dependencies; the graph scored 0.89 and 1.00 (Finding 11).
 - Two mapper gaps were real and are fixed: annotation types (on gson, five annotation types went from no dependents found to an exact match against `jdeps`) and static-import calls (1,704 more resolved calls on dagger). Against the name-resolving key, the mapper's two-hop ceiling on three dagger questions rose from 0.54 to 0.84 (Findings 11, 13, 14).
 - On dagger flow questions, scored against the name-resolving key: search F1 0.94 to 0.96; graph agents with the first mapper 0.65 (recall 0.48); with the rebuilt mapper 0.88 (recall 0.78) at the same cost and more turns; with the `closure` query and footer 0.84 (recall 0.83) at $0.004 a run, 2 turns and 26,662 input tokens, against $0.013, 20 turns and 219,125 for search (Findings 14, 16, 17).
-- In every logged run (Findings 9, 16, 17) the agents used the graph, a soft prompt was as effective as a strong one, and they mostly did not verify: a median of one or two searches and no file reads.
+- In the runs of Findings 9, 16 and 17, where the prompt named the graph, the agents used it every time, a soft prompt was as effective as a strong one, and they mostly did not verify: a median of one or two searches and no file reads. With the graph present and no mention, 0 of 9 Claude runs and 0 of 9 Antigravity runs used it (Finding 19). With the installer's `CLAUDE.md` section and hook, every Claude run that used the graph also searched afterwards (N2 to N4, 27 of 27, Finding 19).
 - The mapper built its graph 7.6 to 17 times faster than Graphify's `extract --code-only` on four repositories, with a smaller graph (Finding 18).
-- On kubernetes "which packages import P" questions (exact graph, key and graph agree), every condition reached F1 1.00 on both agent harnesses. The map lowered Claude's median cost on high-noise questions by 28 percent when named in the prompt ($0.0095 against $0.0132) and raised Antigravity's token use (111,339 against 77,959); a hook that redirects only noisy searches stayed silent on quiet ones on both harnesses and saved nothing on Antigravity (Finding 20).
+- On kubernetes "which packages import P" questions (exact graph, key and graph agree), every condition reached F1 1.00 on both agent harnesses. The map lowered Claude's median cost on high-noise questions by 28 percent when named in the prompt ($0.0095 against $0.0132). Antigravity's token use first rose (111,339 against 77,959) because the footer told agents to re-search; with a footer that says the list is complete it fell to 0.44 of search for the named map and 0.65 for the noise gate (33,909 and 50,398 against 77,042), at the same F1. The gate stayed silent on quiet searches on both harnesses (Finding 20 and its rerun).
 - Graph use depends on the nudge. In Claude Code, with the graph present and no mention, 0 of 9 runs used it; the installer's `CLAUDE.md` section gave 5 of 9, its hook 9 of 9 and both together 9 of 9 (graph first in 7). In Antigravity the installer's rule gave 0 of 9 and a PreToolUse gate 9 of 9. Answer quality did not change: median F1 0.94 to 0.96 across the Claude conditions and recall 1.00 across the Antigravity ones (Finding 19).
 - On gson and yapf "who uses X" questions with the class named, plain search was cheaper: 2 turns against 5 and about 2.7 times fewer input tokens (Finding 7).
 
 ## What not to claim
 
 - That a map is needed, or helps, at kubernetes scale: on import questions plain search matched an exact graph. Not tested: queries with thousands of raw hits, ambiguous names, or questions the mapper models less well (Finding 20).
-- That the noise-gated hook saves cost: with the old footer, which told agents to re-search, it did on neither harness's high-noise questions, and on Claude's low-noise ones it cost 20 percent more (Finding 20).
+- That the noise-gated hook saves cost on Claude Code: with the old footer it did not on high-noise questions, and on low-noise ones it cost 20 percent more (Finding 20). On Antigravity with the exact footer it did (0.65 of S on high-noise questions), but the gate was not what saved it: the map-only condition was cheaper (0.44).
 - That the graph replaces search or matches its quality. The closure query scored F1 0.84 against 0.94, and one pre-registered bar (F1 0.85) was missed by 0.01.
 - That graphs lose in general, or that they win. The trials cover one small model, two question types, three flow questions and one large repository.
 - That search is more accurate than graph answers. That comparison reversed when the key changed from grep to compiled dependencies (Finding 11).
-- That the footer makes agents verify. In Finding 17 they made one call, copied the list, and mostly did not search or read. No task yet put a flagged blind spot in front of them.
+- That the footer makes agents verify. In Finding 17 they made one call, copied the list, and mostly did not search or read. No task yet put a flagged blind spot in front of them. On Antigravity (Finding 20) a footer that said to verify coincided with re-searching and removing that advice brought mean searches from 5.0 to 0.25; that is one before and after comparison, and Claude Code was not rerun.
 - That agents "didn't know" they were trading. The Finding 17 prompts demanded a bare file list. In Finding 19 the answer format had an `UNVERIFIED:` line and agents used it for 4 of 7 missing-file answers with no calibration rule, so the format matters more than the rule.
 - That a stronger prompt or an enforcing hook is needed for agents to use the graph. Adoption was 9 of 9 with a soft task prompt (Finding 9), but 0 of 9 with no mention, so the nudge matters; the installer's hook and `CLAUDE.md` section were one way to supply it, not the only way (Finding 19).
 - That a nudge, a "MANDATORY" wording or a calibration rule makes agents verify or report the graph's gaps. In Finding 19 the answer format alone produced most of the flagging, and the Antigravity questions had no missed files to flag.
@@ -764,11 +788,12 @@ Conditions: A search only, B graph with a soft nudge, C graph with a strong nudg
 ## Next steps
 
 1. Test where search genuinely fails: queries with thousands of raw hits or an ambiguous name, and questions the graph answers less exactly (Finding 20 reached a ceiling of F1 1.00 everywhere).
-2. Put a flagged blind spot in front of the agents (the nudge test of Finding 19 ran without it and could not test calibration): a task whose closure contains reflection-wired or framework-wired files, a planted dependency the build cannot catch, and the `UNVERIFIED:` line. Use harder questions so that recall is below 1.00 and there is something to flag.
-3. Test the effect of repository size on a very large monolith, where search returns long match lists.
-4. Add Python class-usage edges: the yapf graph named no dependents.
-5. Key classes by package-qualified name so same-named classes stop collapsing in the mapper.
-6. Check the name-resolving key and the static-import change against a compiler on a second repository.
-7. Compare `merge-graphs` and the manifest edges on a set of repositories that contains real dependencies, and test whether the hierarchy answers questions.
-8. Add a dependency scope tag (runtime, test, benchmark) to the manifest edges.
-9. Try a graph-first, search-second prompt variant.
+2. Rerun the Claude Code half of Finding 20 with the exact footer; only the Antigravity half has been rerun.
+3. Put a flagged blind spot in front of the agents (the nudge test of Finding 19 ran without it and could not test calibration): a task whose closure contains reflection-wired or framework-wired files, a planted dependency the build cannot catch, and the `UNVERIFIED:` line. Use harder questions so that recall is below 1.00 and there is something to flag.
+4. Test the effect of repository size on a very large monolith, where search returns long match lists.
+5. Add Python class-usage edges: the yapf graph named no dependents.
+6. Key classes by package-qualified name so same-named classes stop collapsing in the mapper.
+7. Check the name-resolving key and the static-import change against a compiler on a second repository.
+8. Compare `merge-graphs` and the manifest edges on a set of repositories that contains real dependencies, and test whether the hierarchy answers questions.
+9. Add a dependency scope tag (runtime, test, benchmark) to the manifest edges.
+10. Try a graph-first, search-second prompt variant.
