@@ -10,7 +10,7 @@ Experiments on what happens when you combine per-repository code graphs, and on 
 
 | Path | Contents |
 | :--- | :--- |
-| `FINDINGS.md` | Twenty findings with a status table, runs and cost, answer keys, claim lists, limits |
+| `FINDINGS.md` | Twenty-two findings with a status table, runs and cost, answer keys, claim lists, limits |
 | `experiments/merge_stats.py` | What `graphify merge-graphs` produces (size, cross-repo edges, bridge nodes) |
 | `experiments/manifest_deps.py` | Cross-repo dependency edges from package manifests |
 | `experiments/simulate_cost.py` | Simulated context cost of a search agent against a graph agent (no model) |
@@ -27,6 +27,8 @@ Experiments on what happens when you combine per-repository code graphs, and on 
 | `data/` | Per-run results and score tables for every trial (no local paths) |
 
 ## Reproduce
+
+Findings 1 to 21, including every agent trial, used the mapper at tag `article-2026-11`: `git fetch --tags && git checkout article-2026-11`. The mapper has changed since (Finding 22).
 
 Run everything from this directory. The corpus is not included.
 

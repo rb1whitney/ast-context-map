@@ -17,7 +17,7 @@ The sandbox files are produced by running the real installer, then removing the 
 test is of the installed product and not of a copy of its text. Hooks are wrapped in a logger so a run records whether
 they fired; a run whose hooks never fired in N2-N4 is reported as invalid, not as a zero.
 
-Commands (run from the folder that holds the clones and `_graphs/`, which is `projects/llm-test` in the lab):
+Commands (run from the folder that holds the clones and `_graphs/`):
   python3 experiments/trial/nudge_trial.py run --dry-run         print the commands and the sandbox plan; free
   python3 experiments/trial/nudge_trial.py run --pilot           one paid run (N3) to confirm the hook fires
   python3 experiments/trial/nudge_trial.py run --reps 3          the full trial (resumable)

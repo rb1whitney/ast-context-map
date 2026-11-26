@@ -256,7 +256,7 @@ def _run_batch(q: List[str], kubeconfig: Optional[str], context: Optional[str]) 
 
 
 def fetch_cluster_resources(
-    namespace: Optional[str] = "cloud-boot-app",
+    namespace: Optional[str] = "default",
     all_namespaces: bool = False,
     kubeconfig: Optional[str] = None,
     dynamic_discovery: bool = True,
@@ -1175,7 +1175,7 @@ def enrich_with_ast_records(graph: Dict[str, Any], records: List[Dict[str, Any]]
 def main():
     parser = argparse.ArgumentParser(description="Extract Kubernetes live state into Graphify knowledge graph format.")
     parser.add_argument(
-        "--namespace", "-n", default="cloud-boot-app", help="Target namespace (default: cloud-boot-app)"
+        "--namespace", "-n", default="default", help="Target namespace (default: default)"
     )
     parser.add_argument("--all-namespaces", "-A", action="store_true", help="Extract across all Kubernetes namespaces")
     parser.add_argument("--kubeconfig", default=None, help="Path to kubeconfig")
@@ -1192,7 +1192,7 @@ def main():
         "--extract-rules", nargs="*", default=None, help="Run skill-code-map local_extract.py on dirs and enrich graph"
     )
     parser.add_argument(
-        "--out", default="projects/cloud-boot-app/graphify-out/k8s-graph.json", help="Output path for graph JSON"
+        "--out", default="graphify-out/k8s-graph.json", help="Output path for graph JSON"
     )
     parser.add_argument("--merge-with", default=None, help="Path to base Graphify graph.json to merge with")
     parser.add_argument(

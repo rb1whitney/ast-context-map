@@ -130,7 +130,7 @@ def normalize_record(
 
 
 def main():
-    targets = sys.argv[1:] if len(sys.argv) > 1 else ["projects/cloud-boot-app", "projects/vault_controller"]
+    targets = sys.argv[1:] if len(sys.argv) > 1 else ["."]
     config_file = DEFAULT_CONFIG
 
     matches = run_ast_grep_scan(config_file, targets)

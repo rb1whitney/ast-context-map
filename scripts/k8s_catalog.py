@@ -495,11 +495,11 @@ def to_graphify(cat_graph: Dict[str, Any]) -> Dict[str, Any]:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Build a redacted CRD-aware Kubernetes relationship cache.")
-    ap.add_argument("--output", default="projects/cloud-boot-app/.cache/k8s-graph/k8s_graph.json")
+    ap.add_argument("--output", default=".cache/k8s-graph/k8s_graph.json")
     ap.add_argument(
         "--groups", nargs="*", default=DEFAULT_GROUPS, help="API group suffixes to fetch instances for; empty = all"
     )
-    ap.add_argument("--namespaces", nargs="*", default=["cloud-boot-app", "default", "argocd", "crossplane-system"])
+    ap.add_argument("--namespaces", nargs="*", default=["default", "argocd", "crossplane-system"])
     ap.add_argument("--context", default=None, help="kubectl context")
     ap.add_argument("--kubeconfig", default=None, help="Path to kubeconfig")
     ap.add_argument("--allow-prod-read", action="store_true", help="Permit read-only access to a *prod* context")

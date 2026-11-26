@@ -13,7 +13,7 @@ high-noise packages, chosen from `git grep` hit counts before any run.
   H+  H, and the denial adds: search inside the files the map lists to confirm
 
 Harnesses: `--harness claude` (Claude Code, hook in .claude/settings.json) and `--harness agy` (Antigravity, hook in
-.agents/hooks.json). Run from the folder that holds the clones and graphs (`projects/llm-test` in the lab).
+.agents/hooks.json). Run from the folder that holds the clones and graphs.
 
   python3 experiments/trial/crossover_trial.py run --harness claude --dry-run
   python3 experiments/trial/crossover_trial.py run --harness claude --pilot

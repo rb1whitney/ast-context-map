@@ -6,7 +6,7 @@ Deterministic, no LLM: task words are matched to graph symbols (classes, methods
 file paths), then expanded along typed edges so the result covers what must change (seeds),
 what breaks when they change (dependents) and what they rely on (dependencies).
 
-  auto_context.py "add a field to DataDTO" --src projects/cloud-boot-app/src
+  auto_context.py "add a field to DataDTO" --src path/to/src
   auto_context.py "retry logic in DataService.createData" --graph relationship_graph.json --top 5 --json
 """
 

@@ -25,6 +25,11 @@ Impact of changing 'PaymentRequest':
 - AuditLogger (depth 1, via PaymentRequest)
 - PaymentGatewayClient (depth 1, via PaymentRequest)
 - PaymentOrchestrator (depth 1, via PaymentRequest)
+
+-- coverage --
+This answer covers 3 classes. The graph is syntactic: it does not follow reflection, string-built names, generated code or framework wiring.
+Blind spots on these classes: none recorded
+Verify before changing shared code: git grep -lw PaymentRequest
 ```
 
 `semantic_query.py` subcommands: `find-definition`, `find-usages`, `trace-dependencies`, `impact`, `query`, `lineage`, `shortest-path`, `diff-impact`.
@@ -154,7 +159,7 @@ Reproduce with `python3 benchmarks/token_compare.py`. The sample is a small synt
 | Scenario | Raw bytes | AST bytes | Saved |
 | :--- | ---: | ---: | ---: |
 | Whole repo: raw source vs `code_map.md` | 9668 | 3678 | 62.0% |
-| Blast radius of `PaymentRequest`: files mentioning it vs `impact` query | 7914 | 186 | 97.6% |
+| Blast radius of `PaymentRequest`: files mentioning it vs `impact` query | 7914 | 451 | 94.3% |
 
 Read this carefully: a whole-repo map saves a moderate amount on small, comment-light code. The large savings come from targeted queries that return only the answer. Results on a real repository depend on its size and density; measure on yours.
 

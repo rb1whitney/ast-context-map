@@ -859,6 +859,8 @@ I read LogicLens and codebadger in full (text supplied by the author). The commu
 
 ## Reproduce
 
+Findings 1 to 21 used the mapper at tag `article-2026-11`; check out that tag first. Finding 22 describes what changed after it.
+
 All commands run from `research/graph-of-graphs` after fetching the corpus (see README). Everything is read-only except `trial.py run`, which makes paid model calls.
 
 ```bash
