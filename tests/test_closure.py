@@ -64,3 +64,23 @@ def test_cli_prints_the_footer_on_find_usages_and_closure(tmp_path):
         )
         assert run.returncode == 0, run.stderr
         assert "-- coverage --" in run.stdout and "git grep -lw" in run.stdout
+
+
+def test_go_package_usages_get_the_exact_footer_and_no_research_advice(tmp_path):
+    g = {
+        "nodes": {
+            "go:pkg/a": {"type": "go-package", "file": "pkg/a"},
+            "go:pkg/b": {"type": "go-package", "file": "pkg/b"},
+        },
+        "edges": [{"from": "go:pkg/b", "to": "go:pkg/a", "type": "imports"}],
+    }
+    graph_file = tmp_path / "g.json"
+    graph_file.write_text(json.dumps(g))
+    run = subprocess.run(
+        [sys.executable, str(SCRIPTS / "semantic_query.py"), "--graph", str(graph_file), "find-usages", "go:pkg/a"],
+        capture_output=True,
+        text=True,
+    )
+    assert run.returncode == 0, run.stderr
+    assert "complete for those files" in run.stdout
+    assert "git grep -lw" not in run.stdout and run.stdout.count("-- coverage --") == 1

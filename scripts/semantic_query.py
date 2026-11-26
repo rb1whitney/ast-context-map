@@ -246,6 +246,23 @@ class SemanticQuery:
             return f"No usages found for '{name}'."
         return "\n".join([f"Usages of '{name}':"] + res)
 
+    def exact_usage_footer(self, name: str) -> Optional[str]:
+        """A trust line for lists that are complete by construction (Go package imports); None for everything else.
+
+        The generic footer tells the agent to re-search. On a Go import list that is wrong and costly: measured in
+        Finding 20, agents followed it and re-searched the whole repository after receiving the full answer.
+        """
+        nodes = self.graph.get("nodes", {})
+        found = [t for t in (set(self._matches(name)) or {name}) if t in nodes]
+        if found and all(nodes[t].get("type") == "go-package" for t in found):
+            return (
+                "-- coverage --\n"
+                "Each line is a directory with a non-test, non-vendor .go file that imports this package directly. Go requires "
+                "an explicit import for every cross-package use, so this list is complete for those files: searching the whole "
+                "repository again will not add to it. Not covered: test files, vendor/, other modules, build-generated code."
+            )
+        return None
+
     def trace_dependencies(self, target: str) -> str:
         """Outbound edges of a file path, a class (including its methods), or a single method."""
         edges = self.graph.get("edges", [])
@@ -618,7 +635,7 @@ def main() -> None:
         print(query.closure(args.name, args.depth, args.limit))
     elif args.command == "find-usages":
         print(query.find_usages(args.name))
-        print(query.coverage_footer(query.usage_owners(args.name), args.name))
+        print("\n" + (query.exact_usage_footer(args.name) or query.coverage_footer(query.usage_owners(args.name), args.name).lstrip("\n")))
     elif args.command == "trace-dependencies":
         print(query.trace_dependencies(args.file))
     elif args.command == "impact":

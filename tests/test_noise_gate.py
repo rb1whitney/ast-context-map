@@ -63,3 +63,21 @@ def test_agy_payload_shape(tmp_path):
     r = repo(tmp_path, 5)
     p = {"toolCall": {"name": "run_command", "args": {"CommandLine": 'rg -l "a/b" .'}}, "workspacePaths": [str(r)]}
     assert ng.decide(p, env(tmp_path, r))[0] is True
+
+
+def test_defaults_need_no_environment(tmp_path, monkeypatch):
+    r = repo(tmp_path, 5)
+    monkeypatch.setattr(ng.tempfile, "gettempdir", lambda: str(tmp_path))
+    payload = {"tool_name": "Grep", "tool_input": {"pattern": "a/b"}, "cwd": str(r), "session_id": "s1"}
+    env_min = {"NOISE_MIN_HITS": "3"}
+    deny, reason, _ = ng.decide(payload, env_min)
+    assert deny and "semantic_query.py" in reason and "auto_context.py" in reason
+    assert ng.decide(payload, env_min)[0] is False  # same session: one denial only
+    assert ng.decide({**payload, "session_id": "s2"}, env_min)[0] is True  # a new session is gated again
+
+
+def test_map_command_default_regex_includes_auto_context(tmp_path):
+    r = repo(tmp_path, 5)
+    e = env(tmp_path, r)
+    cmd = {"tool_name": "Bash", "tool_input": {"command": 'python3 x/auto_context.py "task" --src d'}}
+    assert ng.decide(cmd, e)[2] == "map-command"
