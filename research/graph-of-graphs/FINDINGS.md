@@ -20,11 +20,11 @@ Dagger flow numbers use the primary key (Finding 14). Everything is one small mo
 | Graph agents against search on two-hop questions (dagger) | Search: F1 0.94, $0.013, 20 turns, 54.5 s per run. First mapper: 0.65 (recall 0.48). Rebuilt mapper, one-hop tools: 0.88 (recall 0.78), same cost, 36 turns. `closure` tool: 0.84 (recall 0.83), $0.004, 2 turns, 10.5 s. | 14, 16, 17 |
 | Does the answer key change the ranking? | Yes: on gson, search scored 1.00 against a grep-built key and 0.84 against compiled dependencies; the graph 0.89 and 1.00. | 11 |
 | Is the mapper's 0.84 ceiling real? | Lower on held-out entries: 0.76 pooled on dagger and 0.70 on gson (random entries); unusable on guava (0.10, duplicate source trees). | 21 |
-| Do agents use a map unprompted? | No: 0 of 9 Claude runs and 0 of 9 Antigravity runs. Claude's `CLAUDE.md` section plus hook: 9 of 9 (graph first in 7). Antigravity: installer rule 0 of 9, a blocking PreToolUse gate 9 of 9. | 19 |
+| Do agents use a map unprompted? | No: 0 of 9 Claude runs and 0 of 9 Antigravity runs. Claude's `CLAUDE.md` section plus hook: 9 of 9 (graph first in 7; only the search hook acted, see the strict-mode follow-up). Antigravity: installer rule 0 of 9, a blocking PreToolUse gate 9 of 9. | 19 |
 | Does using the map change accuracy? | Not when it is complete: recall 0.92 to 0.96 on Claude in every condition; F1 1.00 in every kubernetes cell. It does when the map is incomplete (recall tracked the graph's ceiling). | 10, 19, 20 |
 | What does a map change when it is exact (kubernetes import questions)? | Cost. High-noise questions, median: Claude 0.72 of search when the map was named; Antigravity 0.44 (named) and 0.65 (noise gate) of search after the footer fix, against 1.43 and 1.49 before it. | 20 |
 | Does the tool's footer matter? | On Antigravity, replacing "verify" advice with "complete for those files" took mean searches from 5.0 to 0.25 (one before and after pair; Claude not rerun). | 20 |
-| Does Graphify's opt-in strict install change use? | Not yet known. The first attempt never triggered the hook (0 denials in 9 runs, wrong sandbox); the corrected runs (N3c, N5c) were pre-registered and are in progress. | 19 |
+| Does Graphify's opt-in strict install change use? | Graph-first starts rose from 7 to 9 of 9 and recall and cost did not change, but the strict block never fired (no agent read before querying), so it cannot be credited. The first attempt tested nothing (files outside the working directory). Also, Graphify's Read hook was silent in all earlier runs for the same reason. | 19 |
 
 ## Status of the findings
 
@@ -48,7 +48,7 @@ Dagger flow numbers use the primary key (Finding 14). Everything is one small mo
 | 16 | Rebuilt graph | Current |
 | 17 | Closure trial | Current |
 | 18 | Build time against Graphify | Current; indicative, not a controlled benchmark |
-| 19 | Graphify nudge probe and nudge trials (Claude Code and Antigravity) | Current; graph use depends on the nudge, recall did not change, calibration not testable on these questions |
+| 19 | Graphify nudge probe and nudge trials (Claude Code and Antigravity) | Current; graph use depends on the nudge, recall did not change, calibration not testable; strict mode never fired; the Read hook was inert outside the working directory |
 | 20 | Map versus search by search noise, with a noise-gated hook (kubernetes) | Current; F1 1.00 in every cell, so the map changed cost, not accuracy; the Antigravity cost penalty came from the footer (rerun) |
 | 21 | Held-out check of the mapper's two-hop ceiling (dagger, gson, guava) | Current; 0.76 and 0.70 pooled against 0.84 on the tuned questions; guava not usable (duplicate trees) |
 
@@ -63,8 +63,10 @@ Dagger flow numbers use the primary key (Finding 14). Everything is one small mo
 | dagger flow, closure, D | 17 | 9 | $0.034 | `data/trial-flow-v5-runs.csv` |
 | dagger flow, nudge test N0 to N4 (Claude Code) | 19 | 45 | $0.764 | `data/trial-nudge-claude-runs.csv` |
 | kubernetes import questions, S, M, H, H+ (Claude Code) | 20 | 64 | $0.525 | `data/trial-cross-claude-runs.csv` |
+| Graphify strict install, repository outside the working directory (N5; did not exercise strict mode) | 19 | 9 | $0.164 | `data/trial-nudge-strict-runs.csv` |
+| N3c and N5c, repository as the working directory | 19 | 18 | $0.307 | `data/trial-nudge-strict2-runs.csv` |
 | pilots and interrupted runs | | 16 | $0.243 | not published |
-| **Total (Claude)** | | **233** | **$2.620** | |
+| **Total (Claude)** | | **260** | **$3.091** | |
 | dagger flow, nudge test G0 to G4 (Antigravity, `gemini-4-hydrogen-medium`) | 19 | 45 | not reported (12.15 million tokens, summed over the 45 run files) | `data/trial-nudge-agy-scores.txt` |
 | kubernetes import questions (Antigravity, same model) | 20 | 64 | not reported (4.96 million tokens) | `data/trial-cross-agy-runs.csv` |
 | same, rerun with the exact footer | 20 | 64 | not reported (3.97 million tokens) | `data/trial-cross-agy-v2-runs.csv` |
@@ -486,7 +488,7 @@ Reading:
 - Whether that trade is good enough depends on the cost of a miss. The F1 bar was missed by 0.01, within the run-to-run noise seen for search (0.96 against 0.94).
 - Limits: nine runs but effectively three distinct outcomes, comparison runs made earlier, D's prompt names `closure` where B's does not, one repository, one small model, a text-based reference. D differs from A and B in three ways at once (a later run, a prompt that names `closure`, and the footer), so the 69 percent is the effect of the tool together with its prompt, not of the tool shape alone. Input tokens include cached tokens (cache creation and cache reads), so the dollar figures are the cleaner comparison.
 
-Cost of the Claude runs, including Findings 19 and 20: 233 saved runs, $2.62 (the 115 earlier runs cost $1.15).
+Cost of the Claude runs, including Findings 19 and 20: 260 saved runs, $3.09 (the 115 earlier runs cost $1.15).
 
 ## Finding 18: build time of this repository's mapper against Graphify, and what each builds
 
@@ -569,7 +571,7 @@ Cost per run was $0.014 to $0.019 and median turns 19 to 31 across conditions. "
 Against the pre-registered readings:
 
 - **Hypothesis 1 holds.** With the graph in the repository and no mention, the agent never queried it (0 of 9).
-- **Hypothesis 2 holds, and the effect is large.** Graph use went from 0 to 5 of 9 with the `CLAUDE.md` section and to 9 of 9 with the hook. In N2 the agents used the graph in every run but never as the first call: the hook text arrived after they had already searched. The earlier soft task prompt (Finding 9) gave 9 of 9 with the graph first; the installer's own nudge gets there only when `CLAUDE.md` and the hook are combined, and then in 7 of 9.
+- **Hypothesis 2 holds, and the effect is large.** Graph use went from 0 to 5 of 9 with the `CLAUDE.md` section and to 9 of 9 with the hook. In N2 the agents used the graph in every run but never as the first call: the hook text arrived after they had already searched. (Only the search half of the installed hook acted in N2 to N4: the Read and Glob half was silent because the repository was outside the working directory; see the strict-mode follow-up.) The earlier soft task prompt (Finding 9) gave 9 of 9 with the graph first; the installer's own nudge gets there only when `CLAUDE.md` and the hook are combined, and then in 7 of 9.
 - **Hypothesis 3 is not supported as written.** Recall in N3 was not higher than in N0 or N1 (0.96 each), which matches the first clause. The second clause failed: every N2, N3 and N4 run used the graph and then searched (27 of 27), and the N3 median (10) was above N4's (7), not below. (In N0 and in the four N1 runs that never used the graph, the "searches after the graph" column counts all searches.) Confidence was not measured, so the "raises confidence" part is untested.
 - **Hypothesis 4 is not supported as written.** N4 flagged uncertainty in all 7 answers that missed files, which meets the first bar. N3 flagged 5 of 6, far above the quarter the reading allowed, and N0 flagged 4 of 7. All conditions share one answer format with an `UNVERIFIED:` line, so the format alone produced most of the flagging. The calibration rule moved it from 4 of 7 to 7 of 7, on a handful of answers.
 - **The graph raised use, not accuracy.** Median F1 was 0.94 to 0.96 and recall 0.92 to 0.96 in every condition, including the one that never used the graph. The calibration rule did not reduce misses; N4 recall was the lowest (0.92).
@@ -612,6 +614,30 @@ Readings, fixed before running:
 - **It does not change accuracy** if median recall is within 0.04 of N3c's.
 - **It changes cost** only if median cost differs from N3c's by more than 25 percent.
 - A denied first read followed by no `graphify query` in the run is reported as circumvention.
+
+**Results of the corrected runs (N3c and N5c, 9 runs each, all valid; `data/trial-nudge-strict2-runs.csv`, `data/trial-nudge-strict2-scores.txt`, $0.307 in total).** Medians over nine runs:
+
+| | N3c (default install, repository as working directory) | N5c (strict install, same) |
+| :--- | ---: | ---: |
+| Graph used / graph the first call | 9 / 7 | 9 / 9 |
+| Median graph calls | 2 | 12 |
+| Median searches / reads after the first graph call | 10 / 1 | 5 / 1 |
+| Median recall, F1 (range) | 0.82, 0.89 (0.47 to 0.96) | 0.79, 0.85 (0.65 to 0.96) |
+| Median cost, turns | $0.016, 22 | $0.018, 26 |
+| Strict denials logged | not applicable | 0 |
+
+Against the pre-registered readings:
+- **Validity: not established.** No N5c run read a source file before its first `graphify` command (the graph came first in all 9, and the first `Read` was the second to fifth call), so the strict deny never had occasion to fire. The condition "a denial in the runs where a read came first" has no qualifying runs. That the deny works was shown only by the offline check above.
+- **Graph used first in at least 8 of 9 and used in 9 of 9: met** (9 and 9, against 7 and 9 for N3c).
+- **Recall within 0.04 of N3c: met** (0.79 against 0.82).
+- **Cost more than 25 percent from N3c: no** ($0.018 against $0.016, 12 percent more).
+- **Circumvention: none occurred**, because there was no denial to circumvent.
+
+What this does and does not show (interpretation): the strict install was followed by more graph-first starts, but the block cannot be the cause, since it never fired. The project install also adds a project-level `CLAUDE.md` and a Graphify skill that N3c lacks, and the median graph calls differ six-fold (12 against 2), so the install changed behavior in ways other than blocking a read. Those effects were not separated. Whether Graphify's block changes what an agent does when it reads first is untested on a model.
+
+**Two consequences for Finding 19 as a whole (found while analysing these runs).**
+- **Half of the installed hook was inert in N0 to N5.** Graphify's Read and Glob hook acts only on files inside the working directory. In every earlier run the clone was outside it (read through `--add-dir`), and the hook logged no output in all 572 firings (438 in N0 to N4, 134 in N5). Only the search hook (`Bash|Grep`) ever reached the agent, with output in 207 of 273 firings. So the "hook" in N2, N3 and N4 means the search hook alone, which also explains why the graph was never the first call in N2: that hook fires only on a search. Inside the working directory the Read hook produced output in 144 of 152 firings.
+- **Where the repository sits changes behavior.** The same default install gave median recall 0.96 with the repository outside the working directory (N3) and 0.82 inside it (N3c), with a median of 15 reads after the graph against 1, and F1 0.96 against 0.89. The cause was not isolated (candidates: the Read hook now acting, or the files being inside the project). N3c is therefore the comparator for N5c, and the numbers of N0 to N4 describe an agent working outside the project directory.
 
 ## Finding 20: when does a map beat search, and can a hook decide? (kubernetes)
 
@@ -800,7 +826,7 @@ I read LogicLens and codebadger in full (text supplied by the author). The commu
 - Question selection: the Finding 6 and 7 symbols came from Graphify's list of the best-connected nodes, which favors a graph; Finding 20's import questions favor search (an exact string); neither set samples ordinary questions.
 - Effective sample size: because agents gave near-identical answers across repeats, most trials hold about as many distinct outcomes as questions (three on dagger, eight on kubernetes), so pooled F1 and cost figures should be read next to the per-question numbers.
 - Four answer keys were used over the course of the work; Finding 14's name-resolving key is the primary one and none of the keys other than gson's is compiler-derived. The key resolves classes by package and imports, while the mapper keys classes by simple name (Next steps, item 6), so the two can disagree on same-named classes; whether they share other blind spots is not known.
-- Finding 19: three questions, nine runs per cell, so some cells hold effectively three outcomes. Calibration was measured on 5 to 7 answers per Claude condition and on none for Antigravity. User-level instructions of the author loaded in every run (and the Antigravity runs also loaded a global rules file and a global Graphify skill), so N0 and G0 are not instruction-free. Antigravity agents could in principle bypass the gate with a shell one-liner. The hook-text `PreInvocation` injection of Antigravity was not tested because it did not fire in a probe.
+- Finding 19: the repository was outside the working directory in N0 to N5, which switched off Graphify's Read and Glob hook and changed agent behavior (N3 against N3c); three questions, nine runs per cell, so some cells hold effectively three outcomes. Calibration was measured on 5 to 7 answers per Claude condition and on none for Antigravity. User-level instructions of the author loaded in every run (and the Antigravity runs also loaded a global rules file and a global Graphify skill), so N0 and G0 are not instruction-free. Antigravity agents could in principle bypass the gate with a shell one-liner. The hook-text `PreInvocation` injection of Antigravity was not tested because it did not fire in a probe.
 - Comparison runs were made at different times, and from Finding 16 on the query script changed (a coverage footer was added), so older graph runs are not comparable with newer ones.
 
 ## Reproduce
