@@ -1,6 +1,8 @@
-# Findings: graphs of graphs across 20 real repositories
+# Findings: semantic code graphs for agents, from graphs of graphs to how agents use a map (20 public repositories)
 
-Evidence for an article on combining ast-grep, the semantic code graph, and Graphify into a graph of graphs. Every number below was produced by a script in `experiments/` or read from `results.tsv`.
+Evidence for an article on semantic code graphs for agents: whether merging per-repository graphs works (Findings 1 to 6), whether agents do better with a graph than with search (7 to 17), and whether and how agents use a map at all (18 to 20). Every number below was produced by a script in `experiments/` or read from `results.tsv`.
+
+**Primary answer key.** All headline numbers for the dagger flow questions use one key, the name-resolving key of Finding 14. The grep-built, text-closure and compiler-derived keys are sensitivity checks, reported where they change a ranking. The author wrote both the mapper and that key, so they may share blind spots; only gson has a compiler-derived key.
 
 ## Thesis
 
@@ -45,8 +47,8 @@ For agents, a graph tool changes the trade between cost and completeness, and th
 | dagger flow, nudge test N0 to N4 (Claude Code) | 19 | 45 | $0.764 | `data/trial-nudge-claude-runs.csv` |
 | kubernetes import questions, S, M, H, H+ (Claude Code) | 20 | 64 | $0.525 | `data/trial-cross-claude-runs.csv` |
 | pilots and interrupted runs | | 16 | $0.243 | not published |
-| **Total (Claude)** | | **233** | **$2.612** | |
-| dagger flow, nudge test G0 to G4 (Antigravity, `gemini-4-hydrogen-medium`) | 19 | 45 | not reported (about 9.0 million tokens) | `data/trial-nudge-agy-scores.txt` |
+| **Total (Claude)** | | **233** | **$2.620** | |
+| dagger flow, nudge test G0 to G4 (Antigravity, `gemini-4-hydrogen-medium`) | 19 | 45 | not reported (12.15 million tokens, summed over the 45 run files) | `data/trial-nudge-agy-scores.txt` |
 | kubernetes import questions (Antigravity, same model) | 20 | 64 | not reported (4.96 million tokens) | `data/trial-cross-agy-runs.csv` |
 | same, rerun with the exact footer | 20 | 64 | not reported (3.97 million tokens) | `data/trial-cross-agy-v2-runs.csv` |
 
@@ -94,6 +96,8 @@ Experiment: `experiments/merge_stats.py`, nine small repos (gson, yapf, brotli, 
 | Edges touching a shared node | 6,043 |
 
 Edges equal the sum of the inputs and 266 nodes were merged by id. No edge connects a node of one repo to a node of another. The only cross-repo connectivity runs through nodes that the merge unified.
+
+This result was close to certain before the run: the nine repositories are mostly independent, so zero direct edges is what any merge would give. Among these nine the only dependency known to exist is `libphonenumber` to `googletest` (a CMake link line, Finding 4), and the merge did not produce it. The finding tests what the merge does, not whether graphs of independent repositories should link.
 
 ## Finding 3: the bridges are standard-library names
 
@@ -185,6 +189,8 @@ Experiment: `experiments/trial/trial.py`, 36 real runs of the smallest model (ha
 
 All 36 runs cost $0.181 in total (A $0.081, B $0.100). Input tokens include cached tokens.
 
+Note on the yapf rows: Finding 12 found that the yapf graph named no dependents (the mapper builds only a module-level graph for Python), so the yapf B row measures a graph with nothing to find, not a working graph. Read the gson rows as the graph result. The symbols for Findings 6 and 7 were picked from Graphify's own list of the best-connected nodes (`hubs`), which favors the graph.
+
 Reading:
 
 - Plain search was cheaper and at least as accurate on this question type. The graph condition used about 2.5 times the turns and 2.7 to 2.8 times the input tokens on both repos.
@@ -195,29 +201,9 @@ Reading:
 - Validity check on tool denials (added after the fact): 4 of the 18 graph-condition runs had at least one denied tool call, because the agent sometimes wrote a compound shell command that the allow-rule did not match. The 14 graph runs with no denial give the same picture (cost $0.006, 5 turns, recall 0.96, F1 median 0.92, against $0.004, 2 turns and F1 0.99 for search), so this finding does not depend on the denied runs. Whether the agents used the graph tool successfully in the other runs was not logged.
 - One scoring note: an agent once answered with an extra leading repo folder (`yapf/yapf/pytree/...`). The scorer now accepts a repo-name prefix for both conditions, since the files were right.
 
-## Finding 8: measured agent trial on multi-hop flow questions (dagger), superseded by Finding 9
+## Finding 8: superseded, moved to the appendix
 
-Experiment: `experiments/trial/trial.py` with `questions_flow.json`, 18 real runs of the same small model, 3 repeats, total cost $0.230. Repository: dagger (2,089 source files, 722 main-source Java files). Three entry classes in different modules. Question: "list the main-source files that take part in what the class does: the classes it uses, and the classes those use (two steps), excluding tests and its own file." The reference (26, 32 and 26 files) is a text-based closure with no graph: identifier references among uniquely named main-source classes, comments stripped, depth 2. Condition A has Read, Grep and Glob. Condition B adds a prebuilt graph from this repository's own mapper, queried with `auto_context.py --top 40` and `semantic_query.py`. Stored: `data/trial-flow-runs.csv` (one row per run) and `data/trial-flow-scores.txt`.
-
-| Entry class | Reference files | Cond | Cost per run | Turns | Input tokens | Precision | Recall | F1 median (range) |
-| :--- | ---: | :--- | ---: | ---: | ---: | ---: | ---: | :--- |
-| MissingBindingValidator | 26 | A search | $0.015 | 12 | 253,264 | 0.53 | 0.62 | 0.57 (0.56-0.59) |
-| MissingBindingValidator | 26 | B graph | $0.009 | 9 | 125,825 | 0.47 | 0.54 | 0.50 (0.27-0.56) |
-| HiltViewModelFactory | 32 | A search | $0.009 | 9 | 125,218 | 0.92 | 0.69 | 0.79 (0.73-0.83) |
-| HiltViewModelFactory | 32 | B graph | $0.012 | 19 | 206,585 | 0.92 | 0.38 | 0.53 (0.50-0.81) |
-| ActivityRetainedComponentManager | 26 | A search | $0.014 | 26 | 198,816 | 0.88 | 0.77 | 0.83 (0.80-0.84) |
-| ActivityRetainedComponentManager | 26 | B graph | $0.010 | 15 | 159,050 | 0.92 | 0.46 | 0.62 (0.62-0.74) |
-| All three, pooled | | A search | $0.014 | 20 | 201,368 | 0.88 | 0.69 | 0.79 (0.56-0.84) |
-| All three, pooled | | B graph | $0.011 | 15 | 163,877 | 0.92 | 0.46 | 0.56 (0.27-0.81) |
-
-Reading:
-
-- Quality did not improve with the graph. Recall and median F1 were lower for B on all three questions, and pooled F1 was 0.56 against 0.79.
-- Cost was mixed. B was cheaper on two questions (about 30 to 40 percent on the first) and more expensive on `HiltViewModelFactory` (19 turns against 9). Pooled, B used about 20 percent fewer turns and input tokens, a difference of about a third of a cent per run.
-- The hypothesis that a graph wins where search has no obvious keyword is not supported by this tool. A likely cause, not tested here: `auto_context` returns a ranked list of 40 files by personalised PageRank, not the two-step closure the question asks for. B's precision was similar or higher and its recall lower, which fits an agent that stops after a partial list. (Superseded: the Finding 9 logs show the agents did not use `auto_context`.)
-- Plain search itself reached only 0.57 to 0.83 F1, and A's precision of 0.53 on the first question suggests the agent and the approximate reference disagree about what "takes part" means. These questions are hard and the reference is imperfect.
-- Three repeats per cell. Ranges overlap on two of the three questions, so read this as direction, not significance.
-- **Validity problem: this result is inconclusive.** All 9 graph-condition runs had at least one denied tool call (12 in total). The agents often wrote a compound shell command (`cd`, shell variables, a loop) that the allow-rule, which only matched commands starting with the script, refused. There are no clean graph runs to compare, so the lower recall cannot be separated from the agents being blocked from the tool. The conclusions above were drawn before this check and should be read as provisional. The harness now tells the agent to run one command per call and records denials per run; a rerun is needed.
+Every graph run in this trial had denied tool calls, and its cause was wrong. Use Findings 9, 10, 14 and 16. The original text is under "Appendix: superseded material" at the end of this document.
 
 ## Finding 9: clean rerun of the flow trial with tool-use logging (dagger)
 
@@ -465,15 +451,25 @@ Pooled medians next to search and the one-hop tools:
 
 By question (D, medians): MissingBindingValidator F1 0.92 (recall 0.92, precision 0.92, 2 turns); HiltViewModelFactory 0.72 (0.73, 0.70, 2 turns); ActivityRetainedComponentManager 0.84 (0.83, 0.86, 3 turns, 42,496 input tokens).
 
+The pooled figures rest on three questions, so here is each next to search and the one-hop tools (median F1 of three runs each; `data/trial-flow-v4-runs.csv`, `data/trial-flow-v5-runs.csv`):
+
+| Question | A search | B one-hop | D closure | D minus A |
+| :--- | ---: | ---: | ---: | ---: |
+| MissingBindingValidator | 0.94 | 0.93 | 0.92 | -0.02 |
+| HiltViewModelFactory | 0.98 | 0.87 | 0.72 | -0.26 |
+| ActivityRetainedComponentManager | 0.92 | 0.85 | 0.84 | -0.08 |
+
+The Hilt question accounts for 0.26 of the 0.36 summed gap to search (72 percent). Median wall-clock time per run was 54.5 seconds for A, 53.4 for B and 10.5 for D (the `sec` column of the same files), so the cost difference is also a latency difference of about five times.
+
 Reading:
 
 - The tool shape was the cost bottleneck. One `closure` call replaced 33 one-hop queries. Cost fell from $0.013 to $0.004 (69 percent), input tokens by 88 percent against search, and turns from 20 to 2.
 - The agents added nothing to the tool's answer. Each made one graph call and copied the list. The per-question F1 scores equal the tool's own scores from Finding 15 (0.92, 0.70 to 0.72, 0.83 to 0.84), and outcomes were nearly identical across repeats, so three repeats carry little information about variance. Only 3 of 9 runs searched at all (one search each) and none read a file: the footer's verification line did not cause extra work.
 - The trade against search is ten points of F1 (0.84 against 0.94) for about a third of the cost. Against the one-hop tools it is four points of F1: higher recall (0.83 against 0.78) but lower precision (0.86 against 1.00), because `closure` lists every file within two hops where an agent walking hop by hop picks. Quality is bounded by the graph's ceiling and the reference; the weakest question (Hilt) is where the graph and reference disagree most.
 - Whether that trade is good enough depends on the cost of a miss. The F1 bar was missed by 0.01, within the run-to-run noise seen for search (0.96 against 0.94).
-- Limits: nine runs but effectively three distinct outcomes, comparison runs made earlier, D's prompt names `closure` where B's does not, one repository, one small model, a text-based reference.
+- Limits: nine runs but effectively three distinct outcomes, comparison runs made earlier, D's prompt names `closure` where B's does not, one repository, one small model, a text-based reference. D differs from A and B in three ways at once (a later run, a prompt that names `closure`, and the footer), so the 69 percent is the effect of the tool together with its prompt, not of the tool shape alone. Input tokens include cached tokens (cache creation and cache reads), so the dollar figures are the cleaner comparison.
 
-Cost of the Claude runs, including Findings 19 and 20: 233 saved runs, $2.61 (the 115 earlier runs cost $1.15).
+Cost of the Claude runs, including Findings 19 and 20: 233 saved runs, $2.62 (the 115 earlier runs cost $1.15).
 
 ## Finding 18: build time of this repository's mapper against Graphify, and what each builds
 
@@ -556,13 +552,13 @@ Against the pre-registered readings:
 
 - **Hypothesis 1 holds.** With the graph in the repository and no mention, the agent never queried it (0 of 9).
 - **Hypothesis 2 holds, and the effect is large.** Graph use went from 0 to 5 of 9 with the `CLAUDE.md` section and to 9 of 9 with the hook. In N2 the agents used the graph in every run but never as the first call: the hook text arrived after they had already searched. The earlier soft task prompt (Finding 9) gave 9 of 9 with the graph first; the installer's own nudge gets there only when `CLAUDE.md` and the hook are combined, and then in 7 of 9.
-- **Hypothesis 3 is not supported as written.** Recall in N3 was not higher than in N0 or N1 (0.96 each), which matches the first clause. The second clause failed: every N3 and N4 run used the graph and then searched (9 of 9 each), and the N3 median (10) was above N4's (7), not below. (In N0 and in the four N1 runs that never used the graph, the "searches after the graph" column counts all searches.) Confidence was not measured, so the "raises confidence" part is untested.
+- **Hypothesis 3 is not supported as written.** Recall in N3 was not higher than in N0 or N1 (0.96 each), which matches the first clause. The second clause failed: every N2, N3 and N4 run used the graph and then searched (27 of 27), and the N3 median (10) was above N4's (7), not below. (In N0 and in the four N1 runs that never used the graph, the "searches after the graph" column counts all searches.) Confidence was not measured, so the "raises confidence" part is untested.
 - **Hypothesis 4 is not supported as written.** N4 flagged uncertainty in all 7 answers that missed files, which meets the first bar. N3 flagged 5 of 6, far above the quarter the reading allowed, and N0 flagged 4 of 7. All conditions share one answer format with an `UNVERIFIED:` line, so the format alone produced most of the flagging. The calibration rule moved it from 4 of 7 to 7 of 7, on a handful of answers.
 - **The graph raised use, not accuracy.** Median F1 was 0.94 to 0.96 and recall 0.92 to 0.96 in every condition, including the one that never used the graph. The calibration rule did not reduce misses; N4 recall was the lowest (0.92).
 
 ### Results: Antigravity, G0 to G4 (45 runs, all valid)
 
-Scored with `agy_nudge_trial.py score`; the table is in `data/trial-nudge-agy-scores.txt`. Same dagger flow questions and scoring key, Graphify's graph, model `gemini-4-hydrogen-medium` for every run (read from each run's init event). Nine runs per condition, about 9.0 million tokens in total, no invalid runs. Antigravity reports tokens, not dollars.
+Scored with `agy_nudge_trial.py score`; the table is in `data/trial-nudge-agy-scores.txt`. Same dagger flow questions and scoring key, Graphify's graph, model `gemini-4-hydrogen-medium` for every run (read from each run's init event). Nine runs per condition, 12.15 million tokens in total (the sum of the 45 run files), no invalid runs. Antigravity reports tokens, not dollars.
 
 Conditions: G0 graph present, no mention; G1 the rule `graphify antigravity install` writes (always on); G2 the generic PreToolUse gate in `hooks/agy/graph_gate.py` (denies the first search-like call once and points at the graph); G3 the gate plus a rule and gate note that stress what the graph misses; G4 the gaps rule alone.
 
@@ -579,20 +575,25 @@ Conditions: G0 graph present, no mention; G1 the rule `graphify antigravity inst
 - **A rule that only talks about the graph's gaps got a third of the runs to query it** (G4, 3 of 9).
 - **Calibration could not be tested.** Recall was 1.00 in all five conditions: no valid run missed a key file, so there was nothing to flag, and "flagged when missed" is 0 of 0 everywhere. Whether the gaps wording changes what an agent reports when the graph is wrong is untested.
 - Cost: the gate with the gaps note (G3) used 14 percent more tokens than no nudge (224,447 against 197,054); the other conditions were within 9 percent.
-- The two harnesses are not comparable cell by cell: different models, tools, rules and hook mechanisms.
+- (An earlier version of this finding gave "about 9.0 million" tokens, estimated from per-condition figures; the measured sum is 12.15 million.) The two harnesses are not comparable cell by cell: different models, tools, rules and hook mechanisms.
 
 What this finding supports: with Claude Code's installer defaults, the combination of `CLAUDE.md` section and hook moved graph use from none to every run; with Antigravity only an enforcing PreToolUse hook did. What it does not support: that using the graph improves answers (it did not here), that "MANDATORY" wording or the calibration rule changes verification, or that any nudge makes agents report the graph's blind spots.
 
 
-### Follow-up: Graphify's opt-in strict install (condition N5, pre-registered, not yet run)
+### Follow-up: Graphify's opt-in strict install (conditions N5, then N3c and N5c)
 
-The results above test only Graphify's default install, whose hooks never deny a call. Graphify 0.9.86 also has `graphify install --project --strict`, which keeps the soft search hook but makes the Read and Glob hook deny the first raw file read of a session once, redirecting to `graphify query`, then fall back to the soft nudge (checked without a model: the first `Read` payload was denied with that redirect, the next one got only the soft message). N5 is that install, built from the real installer in a fresh sandbox with `HOME` redirected, and run on the same three questions, three repeats, model and allow-list as N0 to N4 (9 runs). The project install also writes a project-level `.claude/CLAUDE.md` and a Graphify skill under `.claude/skills/`, which N3 does not have; that is part of the product tested and a difference from N3. Hook firings are logged as before, and a run with no logged firing is invalid.
+The results above test only Graphify's default install, whose hooks never deny a call. Graphify 0.9.86 also has `graphify install --project --strict`, which keeps the soft search hook but makes the Read hook deny the first raw file read of a session once, redirecting to `graphify query`, then fall back to the soft nudge. The project install also writes a project-level `.claude/CLAUDE.md` and a Graphify skill under `.claude/skills/`, which the default install does not.
 
-Readings fixed before running:
-- **Strict mode raises graph use at the start** if the graph is the first call in at least 8 of 9 N5 runs (N3: 7 of 9) and used in 9 of 9.
-- **It does not change accuracy** if median recall is within 0.04 of N3's (0.96), that is 0.92 or higher.
-- **It changes cost** only if median cost differs from N3's ($0.017) by more than 25 percent; otherwise no cost effect is claimed.
-- A denied first read that the agent then circumvents (no `graphify query` in the run) is reported as such.
+**N5 as first run (9 runs, same questions, repeats, model and allow-list as N0 to N4): the strict hook never fired, so it says nothing about strict mode.** Hook firings were logged in every run, but no run logged a denial, including two runs that read a source file before any graph query. Graph use was 7 of 9 runs, first call in 1 of 9, median recall 0.92, median cost $0.016, 8 median searches after the graph (`data/trial-nudge-strict-scores.txt`). Cause, found by reading the installed hook's code and probing it: the deny applies only when the file is inside the working directory, is indexed in `graphify-out/manifest.json`, is not newer than `graph.json`, no `graphify query` ran in the last 30 minutes (a stamp in `graphify-out/cache/last_query_stamp`), and it is the session's first such read. In this harness the clone sat outside the working directory (it was read through `--add-dir`), and the graph directory, with its stamp, was shared by every run. The pre-registered readings (graph first in at least 8 of 9; recall within 0.04 of N3; cost within 25 percent) were therefore not tested; the N5 numbers above are the default hooks plus an unexercised strict flag.
+
+**Corrected design, pre-registered before running.** N3c and N5c repeat N3 (default install) and N5 (strict install) with the repository as the working directory: each run gets a copy of the dagger clone that keeps file times, plus its own copy of the graph files and an empty cache, so the strict deny can fire. Checked without a model: the first `Read` of an indexed file was denied, the second was not, and a new session was denied again. Same questions, three repeats, model and allow-list (18 runs). The N5 run files stay in the data as the invalid first attempt.
+
+Readings, fixed before running:
+- **The test is valid** only if the hook log shows a strict denial in the N5c runs where a source `Read` came before any `graphify` command.
+- **Strict mode raises graph use at the start** if the graph is the first call in at least 8 of 9 N5c runs and it is used in 9 of 9; N3c is the comparator (N3, outside the working directory, was first in 7 of 9).
+- **It does not change accuracy** if median recall is within 0.04 of N3c's.
+- **It changes cost** only if median cost differs from N3c's by more than 25 percent.
+- A denied first read followed by no `graphify query` in the run is reported as circumvention.
 
 ## Finding 20: when does a map beat search, and can a hook decide? (kubernetes)
 
@@ -603,7 +604,7 @@ The question behind it: Findings 14 to 19 show that agents rarely use a graph un
 ### What was built and checked (no model calls)
 
 - **Question type:** "which Go packages directly import package P" on kubernetes (31,744 files, commit `776432e`). Go requires an explicit import for every cross-package reference, so import lines give an exact key (`experiments/go_reference.py`, 3 tests). The key is independent of the mapper.
-- **The map:** the mapper's package graph (`graph_builder.py`), queried with `semantic_query.py find-usages go:<directory>`. Built in about 2.5 minutes: 18,221 files read, 70,562 nodes, 24,124 import edges. A first build omitted the nested `go.mod` files (my file list matched only the root one), so the staging packages resolved to no importers; the rebuild fixed it.
+- **The map:** the mapper's package graph (`graph_builder.py`), queried with `semantic_query.py find-usages go:<directory>`. Built in about 2.5 minutes: 18,221 files read (about 18,180 `.go` files and 41 `go.mod` files; the other tracked files in the 31,744 are not Go source), 70,562 nodes, 24,124 import edges. A first build omitted the nested `go.mod` files (my file list matched only the root one), so the staging packages resolved to no importers; the rebuild fixed it.
 - **Agreement:** on the eight questions the graph's importers equal the key's, except one extra importer on each of `pkg/features` and `pkg/api/legacyscheme`. The graph is therefore correct by construction here, and this trial measures cost and search noise, not graph accuracy.
 - **Questions, fixed from grep hit counts before any run** (files a plain `git grep -l` on the import path returns, tests included; importers by the key): low noise `test/e2e/framework/debug` (6 importers, 6 grep files), `test/integration/util` (6, 39), `pkg/apis/flowcontrol` (15, 26), `pkg/volume/util/types` (15, 53); high noise `pkg/features` (172, 587), `pkg/apis/core` (146, 389), `pkg/api/legacyscheme` (144, 227), `test/e2e/framework` (96, 581). In `experiments/trial/questions_go_imports.json`.
 - **The hook:** `hooks/noise_gate.py` (6 tests) works for Claude Code and Antigravity. It counts the files a search pattern matches (`git grep -l`), allows the search if there are 100 or fewer, and otherwise denies once with the map command named. After the map command runs, or after one denial, searches are allowed. The agent gets no standing instruction. Checked live without a model: it denied a search of 590 files and named the command, allowed one of 10 files, and recognised the map command.
@@ -643,7 +644,7 @@ Per-run rows: `data/trial-cross-claude-runs.csv` (cost in USD) and `data/trial-c
 | Antigravity, runs that used the map | low / high | 0 / 0 | 8 / 8 | 0 / 8 | 0 / 8 |
 | Antigravity, runs with a gate denial | high | 0 | 0 | 8 | 8 |
 
-Accuracy did not vary: median F1 was 1.00 in every cell on both harnesses (lowest single run 0.99). Mean turns for Claude on high-noise questions were 5.1 for S, 4.8 for M, 7.2 for H and 11.8 for H+.
+Accuracy did not vary: median F1 was 1.00 in every cell on both harnesses (lowest single run 0.99). Median wall-clock time per Claude run was 20.7 seconds for S, 17.8 for M, 24.2 for H and 20.7 for H+ (16 runs each, from the `duration_ms` field of the run files). Antigravity run files do not record duration, so no Antigravity times are reported; for Finding 19 on Claude the medians were 66.1 seconds for N0, 78.3 for N3 and 64.4 for N4. Mean turns for Claude on high-noise questions were 5.1 for S, 4.8 for M, 7.2 for H and 11.8 for H+.
 
 Against the pre-registered readings:
 
@@ -651,9 +652,9 @@ Against the pre-registered readings:
 - **The gate is sound: yes on Antigravity, no on Claude.** On both harnesses the hook stayed silent on all low-noise searches (0 of 8 map uses) and denied all 8 high-noise H runs; the map was then used in 5 of 8 Claude runs and 8 of 8 Antigravity runs. The cost bar failed on Claude: H on low-noise questions cost $0.0037 against $0.0031 for S, 20 percent more (an absolute difference of $0.0006); on Antigravity it was 31 percent lower (30,179 against 43,447 tokens) in this run, but the rerun gave 43,510 against 44,658 for the same condition (hook silent, no map), so that 31 percent was run-to-run variation; the within-10-percent bar holds on both runs.
 - **H+ is better than H: partly.** F1 was not lower. On Claude, 6 of 8 H+ runs read files on high-noise questions against 2 of 8 for H, at a higher mean cost ($0.0159 against $0.0128) and more turns. On Antigravity, 3 of 8 H+ runs read files against 4 of 8 for H, and tokens were higher (131,693 against 115,950). "Read files" is a proxy for "searched inside the mapped files"; the harness did not check that the files read were the ones the map listed.
 
-What the result says: on this question the map did not make answers better. A single `grep -l` for the import path already returned the answer, even at 587 matching files, because the tools return file lists and not file contents. Plain search was as accurate as the exact graph, at a cost within about $0.004 a run (Claude) and, in this first Antigravity run, between 28 percent lower and 43 percent higher depending on the condition, so the noise level did not make the map necessary. The Antigravity rise was largely the footer (see the rerun below). This supports the view that a map is useful only where search output is too large or too ambiguous to use, and that at kubernetes' scale on this question it is not. The hook did what it was built to do (silent when search is quiet, redirecting when it is noisy); in this first run redirecting saved nothing on Antigravity, and the rerun below shows why.
+What the result says: on this question the map did not make answers better. A single `grep -l` for the import path already returned the answer, even at 587 matching files, because the tools return file lists and not file contents. Plain search was as accurate as the exact graph, at a cost within about $0.004 a run on Claude (the map was 28 percent cheaper when named, 3 to 6 percent dearer under the gate) and, in this first Antigravity run, 43 to 69 percent dearer on the high-noise questions (M +43, H +49, H+ +69 percent; the 28 percent figure is Claude's), so the noise level did not make the map necessary. The Antigravity rise was largely the footer (see the rerun below). This supports the view that a map is useful only where search output is too large or too ambiguous to use, and that at kubernetes' scale on this question it is not. The hook did what it was built to do (silent when search is quiet, redirecting when it is noisy); in this first run redirecting saved nothing on Antigravity, and the rerun below shows why.
 
-Cause found after the trial, and a confound in it: in every condition where an agent ran the map command, the answer ended with the generic coverage footer ("The graph is syntactic... Verify before changing shared code: git grep -lw <package>"), printed by `semantic_query.py` after the exact importer list. The agents followed it: on Antigravity the mean number of searches on high-noise questions was 5.0 under H against 1.6 under S, and one run re-searched the whole repository directory by directory with 12 `rg` calls after receiving the complete list. So the extra cost under M, H and H+ is at least partly caused by the tool's own advice, not by the map or the gate. The footer has since been changed so that a Go package import list says it is complete and carries no re-search advice (Finding 20 follow-up, `exact_usage_footer`); the trial was not rerun, so the effect of that change is untested. Read the cost comparison above as the cost of the map with the old footer.
+Cause found after the trial, and a confound in it: in every condition where an agent ran the map command, the answer ended with the generic coverage footer ("The graph is syntactic... Verify before changing shared code: git grep -lw <package>"), printed by `semantic_query.py` after the exact importer list. The agents followed it: on Antigravity the mean number of searches on high-noise questions was 5.0 under H against 1.6 under S, and one run re-searched the whole repository directory by directory with 12 `rg` calls after receiving the complete list. So the extra cost under M, H and H+ is at least partly caused by the tool's own advice, not by the map or the gate. The footer has since been changed so that a Go package import list says it is complete and carries no re-search advice (Finding 20 follow-up, `exact_usage_footer`); the Antigravity half was rerun with the new footer (see Rerun results below) and the Claude Code half was not. Read the cost comparison above as the cost of the map with the old footer.
 
 Limits specific to these results: F1 reached a ceiling of 1.00 for every condition, so nothing here could show the map helping accuracy or search failing; the noisiest question matched 587 files and the answer was 172 directories, still readable, so a query whose raw hits are in the many thousands, or an ambiguous name, was not tested; the second repeat of each run was near-identical to the first, so the 64 runs per harness hold about 32 outcomes; the Antigravity S condition could not be stopped from finding the map command; Claude's agents could also search with `grep` through Bash because user-level permissions allow it, which is why the gate fired on Bash and Grep both. The two harnesses are not compared with each other.
 
@@ -740,10 +741,15 @@ I read LogicLens and codebadger in full (text supplied by the author). The commu
 ## Limits of the evidence
 
 - Samples are small: three repeats per cell. In the closure trial the agents gave near-identical answers each time, so the nine runs are effectively three outcomes. Some score ranges overlap, and search itself moved from 0.96 to 0.94 F1 between runs.
-- One model: `claude-haiku-5-5`, the smallest available. Larger models may use tools differently.
+- One small model per harness: `claude-haiku-5-5` for Claude Code and `gemini-4-hydrogen-medium` for Antigravity. Larger models may verify, or use tools, differently, so every behavioral claim ("agents do not verify", "agents use the graph") is about these two models.
 - Answer keys are approximate. Only one module of one repository (gson) has a compiler-derived key, `jdeps` reports only RUNTIME-retained annotations, and four types were stubbed to compile. The question set is hub classes, which biases toward well-connected code.
-- Findings 1 to 6 use Graphify's graphs; the agent trials (7 and 9 to 17) use this repository's mapper. The mapper builds a smaller graph, and for Python only a module-level one.
-- Twenty repositories, mostly Google and mostly independent of each other; results may differ elsewhere. Search was very strong at the size of dagger (about 2,000 files); the effect of a much larger repository is untested.
+- Graph sources differ by finding: Findings 1 to 6 use Graphify's graphs; the agent trials of Findings 7 and 9 to 17 use this repository's mapper (a smaller graph, and for Python only a module-level one); Finding 19 uses Graphify's own graph of dagger and its installer; Finding 20 uses the mapper's package-level import graph of kubernetes.
+- Twenty repositories, mostly Google and mostly independent of each other; results may differ elsewhere. Search was very strong at the size of dagger (about 2,000 files). One much larger repository, kubernetes (31,744 files), was tested for one question type (which packages import a given package), where search cannot fail because an import path is an exact string; larger monoliths, other question types and queries with thousands of raw hits are untested.
+- Contamination in every agent trial (Findings 7 to 20): the author's user-level instructions loaded in each run (answers often began with "[global instructions loaded]"), and the Antigravity runs also loaded a global rules file and a global Graphify skill. The effect is symmetric across conditions within a trial but means the results describe these agents with those instructions, not clean agents.
+- Development and evaluation overlap: the mapper fixes (annotation types, static imports, `closure`) were found and checked on the same three dagger questions that Findings 14 to 17 report, so the 0.84 ceiling is a development-set number. Finding 20's held-out check addresses the ceiling, not the agent trials.
+- Question selection: the Finding 6 and 7 symbols came from Graphify's list of the best-connected nodes, which favors a graph; Finding 20's import questions favor search (an exact string); neither set samples ordinary questions.
+- Effective sample size: because agents gave near-identical answers across repeats, most trials hold about as many distinct outcomes as questions (three on dagger, eight on kubernetes), so pooled F1 and cost figures should be read next to the per-question numbers.
+- Four answer keys were used over the course of the work; Finding 14's name-resolving key is the primary one and none of the keys other than gson's is compiler-derived. The key resolves classes by package and imports, while the mapper keys classes by simple name (Next steps, item 6), so the two can disagree on same-named classes; whether they share other blind spots is not known.
 - Finding 19: three questions, nine runs per cell, so some cells hold effectively three outcomes. Calibration was measured on 5 to 7 answers per Claude condition and on none for Antigravity. User-level instructions of the author loaded in every run (and the Antigravity runs also loaded a global rules file and a global Graphify skill), so N0 and G0 are not instruction-free. Antigravity agents could in principle bypass the gate with a shell one-liner. The hook-text `PreInvocation` injection of Antigravity was not tested because it did not fire in a probe.
 - Comparison runs were made at different times, and from Finding 16 on the query script changed (a coverage footer was added), so older graph runs are not comparable with newer ones.
 
@@ -807,3 +813,32 @@ Conditions: A search only, B graph with a soft nudge, C graph with a strong nudg
 8. Compare `merge-graphs` and the manifest edges on a set of repositories that contains real dependencies, and test whether the hierarchy answers questions.
 9. Add a dependency scope tag (runtime, test, benchmark) to the manifest edges.
 10. Try a graph-first, search-second prompt variant.
+
+## Appendix: superseded material
+
+Kept so earlier numbers can be traced. Do not cite these as results.
+
+### Finding 8: measured agent trial on multi-hop flow questions (dagger), superseded by Finding 9
+
+Experiment: `experiments/trial/trial.py` with `questions_flow.json`, 18 real runs of the same small model, 3 repeats, total cost $0.230. Repository: dagger (2,089 source files, 722 main-source Java files). Three entry classes in different modules. Question: "list the main-source files that take part in what the class does: the classes it uses, and the classes those use (two steps), excluding tests and its own file." The reference (26, 32 and 26 files) is a text-based closure with no graph: identifier references among uniquely named main-source classes, comments stripped, depth 2. Condition A has Read, Grep and Glob. Condition B adds a prebuilt graph from this repository's own mapper, queried with `auto_context.py --top 40` and `semantic_query.py`. Stored: `data/trial-flow-runs.csv` (one row per run) and `data/trial-flow-scores.txt`.
+
+| Entry class | Reference files | Cond | Cost per run | Turns | Input tokens | Precision | Recall | F1 median (range) |
+| :--- | ---: | :--- | ---: | ---: | ---: | ---: | ---: | :--- |
+| MissingBindingValidator | 26 | A search | $0.015 | 12 | 253,264 | 0.53 | 0.62 | 0.57 (0.56-0.59) |
+| MissingBindingValidator | 26 | B graph | $0.009 | 9 | 125,825 | 0.47 | 0.54 | 0.50 (0.27-0.56) |
+| HiltViewModelFactory | 32 | A search | $0.009 | 9 | 125,218 | 0.92 | 0.69 | 0.79 (0.73-0.83) |
+| HiltViewModelFactory | 32 | B graph | $0.012 | 19 | 206,585 | 0.92 | 0.38 | 0.53 (0.50-0.81) |
+| ActivityRetainedComponentManager | 26 | A search | $0.014 | 26 | 198,816 | 0.88 | 0.77 | 0.83 (0.80-0.84) |
+| ActivityRetainedComponentManager | 26 | B graph | $0.010 | 15 | 159,050 | 0.92 | 0.46 | 0.62 (0.62-0.74) |
+| All three, pooled | | A search | $0.014 | 20 | 201,368 | 0.88 | 0.69 | 0.79 (0.56-0.84) |
+| All three, pooled | | B graph | $0.011 | 15 | 163,877 | 0.92 | 0.46 | 0.56 (0.27-0.81) |
+
+Reading:
+
+- Quality did not improve with the graph. Recall and median F1 were lower for B on all three questions, and pooled F1 was 0.56 against 0.79.
+- Cost was mixed. B was cheaper on two questions (about 30 to 40 percent on the first) and more expensive on `HiltViewModelFactory` (19 turns against 9). Pooled, B used about 20 percent fewer turns and input tokens, a difference of about a third of a cent per run.
+- The hypothesis that a graph wins where search has no obvious keyword is not supported by this tool. A likely cause, not tested here: `auto_context` returns a ranked list of 40 files by personalised PageRank, not the two-step closure the question asks for. B's precision was similar or higher and its recall lower, which fits an agent that stops after a partial list. (Superseded: the Finding 9 logs show the agents did not use `auto_context`.)
+- Plain search itself reached only 0.57 to 0.83 F1, and A's precision of 0.53 on the first question suggests the agent and the approximate reference disagree about what "takes part" means. These questions are hard and the reference is imperfect.
+- Three repeats per cell. Ranges overlap on two of the three questions, so read this as direction, not significance.
+- **Validity problem: this result is inconclusive.** All 9 graph-condition runs had at least one denied tool call (12 in total). The agents often wrote a compound shell command (`cd`, shell variables, a loop) that the allow-rule, which only matched commands starting with the script, refused. There are no clean graph runs to compare, so the lower recall cannot be separated from the agents being blocked from the tool. The conclusions above were drawn before this check and should be read as provisional. The harness now tells the agent to run one command per call and records denials per run; a rerun is needed.
+

@@ -10,6 +10,8 @@ condition gives the agent; the repository itself is read through --add-dir, so n
   N3  both (the installer default)
   N4  N3 plus a calibration rule appended to CLAUDE.md
   N5  the opt-in strict install, `graphify install --project --strict` (the first raw Read per session is denied once)
+  N3c, N5c  N3 and N5 with the repository as the working directory (a clone inside the sandbox). Graphify's strict hook only denies
+            Reads of files inside the project, so N5, where the clone sits outside the working directory, never exercised it.
 
 The sandbox files are produced by running the real installer, then removing the parts a condition does not get, so the
 test is of the installed product and not of a copy of its text. Hooks are wrapped in a logger so a run records whether
@@ -42,7 +44,8 @@ import trial  # noqa: E402  (parse_stream, parse_unverified, prf, SUFFIX live th
 
 LAB = trial.LAB
 REPO = "dagger"
-CONDS = ["N0", "N1", "N2", "N3", "N4", "N5"]
+CONDS = ["N0", "N1", "N2", "N3", "N4", "N5", "N3c", "N5c"]
+HOOKED = ("N2", "N3", "N4", "N5", "N3c", "N5c")
 CALIBRATION = (
     "\n- The graph lists candidate files. It does not see annotation-driven or reflection-wired uses and it can miss "
     "some static references. Treat its list as a starting point: verify with at least one search before you answer, "
@@ -63,12 +66,24 @@ printf '%s' "$out"
 def make_sandbox(cond: str) -> Path:
     """New directory holding exactly what the condition gives the agent."""
     sandbox = Path(tempfile.mkdtemp(prefix=f"nudge-{cond}-"))
+    inside = cond.endswith("c")
+    if inside:  # the repository is the working directory; a copy that keeps file times, so the graph is not "stale" for it
+        subprocess.run(["cp", "-a", f"{LAB / REPO}/.", str(sandbox)], check=True)  # it is a git repository, so no `git init`
+        cond = cond[:-1]
     graph_out = LAB / "_graphs" / REPO / "graphify-out"
-    (sandbox / "graphify-out").symlink_to(graph_out)
+    if inside:
+        # Graphify's strict hook also reads `cache/last_query_stamp` next to the graph (a query within 30 minutes switches the
+        # block off), so each run gets its own copy of the graph files and an empty cache, never the shared directory.
+        (sandbox / "graphify-out").mkdir()
+        for name in ("graph.json", "manifest.json", ".graphify_root", ".graphify_analysis.json"):
+            shutil.copy2(graph_out / name, sandbox / "graphify-out" / name)
+    else:
+        (sandbox / "graphify-out").symlink_to(graph_out)
     graphify = shutil.which("graphify") or "graphify"
     if cond == "N0":
         return sandbox
-    subprocess.run(["git", "init", "-q", str(sandbox)], check=True)
+    if not inside:
+        subprocess.run(["git", "init", "-q", str(sandbox)], check=True)
     if cond == "N5":  # project-scoped strict install; HOME is redirected so the user's own ~/.claude is untouched
         home = tempfile.mkdtemp(prefix="nudge-home-")
         subprocess.run([graphify, "install", "--project", "--strict", "--platform", "claude"], cwd=sandbox,
@@ -81,7 +96,7 @@ def make_sandbox(cond: str) -> Path:
         shutil.rmtree(sandbox / ".claude")
     elif cond == "N2":
         claude_md.unlink()
-    if cond in ("N2", "N3", "N4", "N5"):
+    if cond in ("N2", "N3", "N4", "N5"):  # `cond` has lost its trailing "c" above
         script = sandbox / "hook_log.sh"
         script.write_text(HOOK_SCRIPT.replace("{graphify}", graphify))
         script.chmod(0o755)
@@ -96,16 +111,16 @@ def make_sandbox(cond: str) -> Path:
     return sandbox
 
 
-def build_cmd(model: str, cap: float) -> list[str]:
+def build_cmd(model: str, cap: float, inside: bool = False) -> list[str]:
     return [
         "claude", "-p", "--model", model, "--output-format", "stream-json", "--verbose", "--max-budget-usd", str(cap),
-        "--no-session-persistence", "--permission-mode", "dontAsk", "--add-dir", str(LAB / REPO),
+        "--no-session-persistence", "--permission-mode", "dontAsk", *([] if inside else ["--add-dir", str(LAB / REPO)]),
         "--tools", "Read,Grep,Glob,Bash", "--allowedTools", "Read", "Grep", "Glob", "Bash(graphify:*)", "Bash(ls:*)",
     ]  # fmt: skip
 
 
-def prompt_for(q: dict) -> str:
-    root = str(LAB / REPO)
+def prompt_for(q: dict, inside: bool = False) -> str:
+    root = "the current working directory" if inside else str(LAB / REPO)
     base = q["prompt"] + trial.SUFFIX.format(root=root) + ONE_COMMAND
     return base.replace(
         "Reply with the final list only:",
@@ -127,14 +142,15 @@ def run(args) -> None:
         out = results / f"{cond}__{REPO}__q{qi}__r{rep}.json"
         if out.exists():
             continue
-        prompt = prompt_for(questions[qi])
+        inside = cond.endswith("c")
+        prompt = prompt_for(questions[qi], inside)
         if args.dry_run:
-            print(cond, f"q{qi} r{rep}", " ".join(build_cmd(args.model, args.cap)), "<<<", prompt.replace("\n", " | ")[-110:])
+            print(cond, f"q{qi} r{rep}", " ".join(build_cmd(args.model, args.cap, inside)), "<<<", prompt.replace("\n", " | ")[-110:])
             continue
         sandbox = make_sandbox(cond)
         try:
             proc = subprocess.run(
-                build_cmd(args.model, args.cap), input=prompt, capture_output=True, text=True, cwd=sandbox, timeout=600
+                build_cmd(args.model, args.cap, inside), input=prompt, capture_output=True, text=True, cwd=sandbox, timeout=600
             )
             parsed = trial.parse_stream(proc.stdout) if proc.stdout else {"is_error": True, "stderr": proc.stderr[-500:]}
             log = sandbox / "hooks.log"
@@ -148,7 +164,7 @@ def run(args) -> None:
         fired = len(parsed["hook_log"])
         note = f"   hooks fired: {fired}" + (f"   DENIED: {denied}" if denied else "")
         print(f"{out.name}: running cost ${total:.3f}{note}")
-        if cond in ("N2", "N3", "N4", "N5") and not fired and not parsed.get("is_error"):
+        if cond in HOOKED and not fired and not parsed.get("is_error"):
             print("   WARNING: hooks never fired in a hook condition; this run is invalid")
         if denied and args.stop_on_denial:
             sys.exit(f"stopping: {out.name} had {denied} denied call(s); check the allow-rule, then use a fresh --results-dir")
@@ -183,6 +199,7 @@ def summarize(d: dict, ref: set) -> dict:
         "reads_after": sum(1 for c in after if c.get("tool") == "Read"),
         "hooks": len(d.get("hook_log") or []),
         "denied": len(d.get("permission_denials") or []),
+        "strict_denies": sum(1 for x in (d.get("hook_log") or []) if '"permissionDecision":"deny"' in x),
         "err": bool(d.get("is_error")),
         "unv": stated is not None,
         "says_complete": says_none,
@@ -203,7 +220,7 @@ def score(args) -> None:
             continue
         d.setdefault("condition", cond)
         s = summarize(d, ref_by_q[int(q[1:])])
-        s["invalid"] = cond in ("N2", "N3", "N4", "N5") and s["hooks"] == 0
+        s["invalid"] = cond in HOOKED and s["hooks"] == 0
         rows[cond].append(s)
     head = (f"{'cond':4} {'n':>2} {'inval':>5} {'den':>3} {'graph':>5} {'first':>5} {'gcalls':>6} {'srch+':>5} {'read+':>5} "
             f"{'hooks':>5} {'flag/miss':>9} {'overconf':>8} {'cost$':>6} {'turns':>5} {'prec':>5} {'rec':>5} {'F1 med (min-max)':>18}")  # fmt: skip
