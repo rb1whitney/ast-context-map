@@ -646,6 +646,17 @@ Cause found after the trial, and a confound in it: in every condition where an a
 
 Limits specific to these results: F1 reached a ceiling of 1.00 for every condition, so nothing here could show the map helping accuracy or search failing; the noisiest question matched 587 files and the answer was 172 directories, still readable, so a query whose raw hits are in the many thousands, or an ambiguous name, was not tested; the second repeat of each run was near-identical to the first, so the 64 runs per harness hold about 32 outcomes; the Antigravity S condition could not be stopped from finding the map command; Claude's agents could also search with `grep` through Bash because user-level permissions allow it, which is why the gate fired on Bash and Grep both. The two harnesses are not compared with each other.
 
+### Follow-up: agy rerun with the exact footer (pre-registered, not yet run)
+
+Why: the first run's map answers ended with a footer that told agents to re-search (see above). `semantic_query.py` now ends a Go import list with "complete for those files; searching again will not add to it". The rerun repeats the Antigravity half of the trial unchanged (same 8 questions, 4 conditions, 2 repeats, `gemini-4-hydrogen-medium`, same prompts, same gate at 100 files) into a separate results directory, so the only intended change is the footer. Condition S never calls the map, so its change from the first run measures run-to-run drift and is the control. The first run stays as the baseline; nothing is overwritten.
+
+Pre-registered readings, fixed before running (high-noise questions, medians unless stated):
+- **The footer explains the extra cost** if M and H each use at most 1.15 times S's tokens and the mean searches per run in M and H are at most 2.5 (they were 1.4 and 5.0, against 1.6 for S, in the first run).
+- **Partly** if M or H tokens fall by at least 20 percent from the first run but stay above 1.15 times S.
+- **Not the cause** if M and H tokens stay within 20 percent of the first run's values (111,339 and 115,950): then the agents' extra work came from the task, the gate message or the model, and the footer change should not be credited.
+- Accuracy: the footer must not lower F1. If median F1 falls below 0.95 in any condition, the claim "complete" is being over-trusted and that is the finding.
+- S's median tokens in the rerun must be within 25 percent of its first-run value (77,959) for the comparison to be read at all; otherwise run-to-run drift is too large for this design to say anything.
+
 ## Related work
 
 I read LogicLens and codebadger in full (text supplied by the author). The community tools below were read as listings only. This is not a survey of the wider literature.
