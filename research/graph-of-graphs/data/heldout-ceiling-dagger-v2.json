@@ -1,0 +1,74 @@
+[
+ {
+  "entry": "hilt-compiler/main/java/dagger/hilt/android/processor/internal/customtestapplication/CustomTestApplicationProcessor.java",
+  "ref": 8,
+  "in_graph": 8,
+  "hit": 6
+ },
+ {
+  "entry": "hilt-compiler/main/java/dagger/hilt/processor/internal/aggregateddeps/AggregatedDepsProcessor.java",
+  "ref": 18,
+  "in_graph": 18,
+  "hit": 15
+ },
+ {
+  "entry": "hilt-compiler/main/java/dagger/hilt/processor/internal/aliasof/AliasOfProcessor.java",
+  "ref": 12,
+  "in_graph": 12,
+  "hit": 10
+ },
+ {
+  "entry": "dagger-compiler/main/java/dagger/internal/codegen/writing/BindingRepresentations.java",
+  "ref": 15,
+  "in_graph": 15,
+  "hit": 15
+ },
+ {
+  "entry": "dagger-compiler/main/java/dagger/internal/codegen/binding/OptionalBindingDeclaration.java",
+  "ref": 24,
+  "in_graph": 24,
+  "hit": 21
+ },
+ {
+  "entry": "dagger-compiler/main/java/dagger/internal/codegen/validation/MembersInjectionValidator.java",
+  "ref": 15,
+  "in_graph": 15,
+  "hit": 14
+ },
+ {
+  "entry": "dagger-compiler/main/java/dagger/internal/codegen/bindinggraphvalidation/MapMultibindingValidator.java",
+  "ref": 57,
+  "in_graph": 57,
+  "hit": 50
+ },
+ {
+  "entry": "dagger-compiler/main/java/dagger/internal/codegen/writing/DelegateRequestRepresentation.java",
+  "ref": 60,
+  "in_graph": 60,
+  "hit": 53
+ },
+ {
+  "entry": "hilt-compiler/main/java/dagger/hilt/processor/internal/root/RootProcessor.java",
+  "ref": 47,
+  "in_graph": 47,
+  "hit": 43
+ },
+ {
+  "entry": "hilt-android/main/java/dagger/hilt/android/internal/lifecycle/DefaultViewModelFactories.java",
+  "ref": 27,
+  "in_graph": 27,
+  "hit": 15
+ },
+ {
+  "entry": "dagger-compiler/main/java/dagger/internal/codegen/binding/ChildFactoryMethodEdgeImpl.java",
+  "ref": 13,
+  "in_graph": 13,
+  "hit": 13
+ },
+ {
+  "entry": "hilt-compiler/main/java/dagger/hilt/processor/internal/disableinstallincheck/DisableInstallInCheckProcessingStep.java",
+  "ref": 10,
+  "in_graph": 10,
+  "hit": 7
+ }
+]

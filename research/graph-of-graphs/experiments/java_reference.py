@@ -43,21 +43,37 @@ def build_edges(root: Path) -> tuple[dict, dict]:
         ).stdout.split()
         if not TEST.search(f) and not f.endswith("package-info.java") and not f.endswith("module-info.java")
     ]
-    by_pkg: dict[str, dict[str, str]] = collections.defaultdict(dict)
-    by_fqn: dict[str, str] = {}
+    by_pkg: dict[str, dict[str, list]] = collections.defaultdict(lambda: collections.defaultdict(list))
+    by_fqn: dict[str, list] = collections.defaultdict(list)
     meta = {}
     for f in files:
         text = (root / f).read_text(errors="ignore")
         pkg = (PACKAGE.search(text) or [None, ""])[1]
         stem = f.rsplit("/", 1)[-1][:-5]
-        by_pkg[pkg].setdefault(stem, f)
-        by_fqn.setdefault(f"{pkg}.{stem}" if pkg else stem, f)
+        by_pkg[pkg][stem].append(f)
+        by_fqn[f"{pkg}.{stem}" if pkg else stem].append(f)
         meta[f] = (pkg, stem, text)
 
-    def class_file(fqn: str):
+    def nearest(cands, referrer: str):
+        """Several trees can declare one class (guava and android/guava): take the one sharing the most leading path."""
+        if not cands:
+            return None
+        mine = referrer.split("/")
+
+        def shared(f: str) -> int:
+            n = 0
+            for a, b in zip(mine, f.split("/")):
+                if a != b:
+                    break
+                n += 1
+            return n
+
+        return max(cands, key=shared)  # ties keep the first listed, as before
+
+    def class_file(fqn: str, referrer: str):
         parts = fqn.split(".")
         for i in range(len(parts), 0, -1):  # a.b.Outer.Inner -> a.b.Outer
-            hit = by_fqn.get(".".join(parts[:i]))
+            hit = nearest(by_fqn.get(".".join(parts[:i])), referrer)
             if hit:
                 return hit
         return None
@@ -76,15 +92,15 @@ def build_edges(root: Path) -> tuple[dict, dict]:
         code = IMPORT.sub(" ", PACKAGE.sub(" ", strip(text)))
         out = set()
         for tok in set(TOKEN.findall(code)) - {stem}:
-            hit = class_file(singles[tok]) if tok in singles else by_pkg[pkg].get(tok)
+            hit = class_file(singles[tok], f) if tok in singles else nearest(by_pkg[pkg].get(tok), f)
             if hit is None:
-                hit = next((by_pkg[w][tok] for w in wild if tok in by_pkg.get(w, {})), None)
+                hit = next((nearest(by_pkg[w][tok], f) for w in wild if tok in by_pkg.get(w, {})), None)
             if hit:
                 out.add(hit)
         idents = set(IDENT.findall(code))
         for cls_path, member in statics:
             if member in idents:
-                hit = class_file(cls_path)
+                hit = class_file(cls_path, f)
                 if hit:
                     out.add(hit)
         edges[f] = out - {f}
