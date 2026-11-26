@@ -63,7 +63,9 @@ def test_cli_prints_the_footer_on_find_usages_and_closure(tmp_path):
             text=True,
         )
         assert run.returncode == 0, run.stderr
-        assert "-- coverage --" in run.stdout and "git grep -lw" in run.stdout
+        assert "-- coverage --" in run.stdout
+        # usages list what uses B, so a search for B is the check; closure lists what A uses, so reading A is
+        assert ("git grep -lw" in run.stdout) == (args[0] == "find-usages")
 
 
 def test_go_package_usages_get_the_exact_footer_and_no_research_advice(tmp_path):
@@ -84,3 +86,19 @@ def test_go_package_usages_get_the_exact_footer_and_no_research_advice(tmp_path)
     assert run.returncode == 0, run.stderr
     assert "complete for those files" in run.stdout
     assert "git grep -lw" not in run.stdout and run.stdout.count("-- coverage --") == 1
+
+
+def test_closure_footer_verifies_the_right_direction_and_ids_are_stripped(tmp_path):
+    graph_file = tmp_path / "g.json"
+    graph_file.write_text(json.dumps(graph(tmp_path / "repo")))
+    run = subprocess.run(
+        [sys.executable, str(SCRIPTS / "semantic_query.py"), "--graph", str(graph_file), "closure", "A"],
+        capture_output=True,
+        text=True,
+    )
+    assert run.returncode == 0, run.stderr
+    assert "what depends on it" in run.stdout and "git grep -lw A" not in run.stdout  # closure lists what A uses
+
+    q = semantic_query.SemanticQuery(str(graph_file))
+    footer = q.coverage_footer(set(), "go:test/e2e/framework/debug")
+    assert "git grep -lw debug" in footer and "go:" not in footer.split("git grep")[1]
