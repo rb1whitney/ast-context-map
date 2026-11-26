@@ -52,7 +52,7 @@ Dagger flow numbers use the primary key (Finding 14). Everything is one small mo
 | 19 | Graphify nudge probe and nudge trials (Claude Code and Antigravity) | Current; graph use depends on the nudge, recall did not change, calibration not testable; strict mode never fired; the Read hook was inert outside the working directory |
 | 20 | Map versus search by search noise, with a noise-gated hook (kubernetes) | Current; F1 1.00 in every cell, so the map changed cost, not accuracy; the Antigravity cost penalty came from the footer (rerun) |
 | 21 | Held-out check of the mapper's two-hop ceiling (dagger, gson, guava) | Current; 0.76 and 0.70 pooled against 0.84 on the tuned questions; guava not usable (duplicate trees) |
-| 22 | Mapper and answer-key fix for same-named Java classes; memory and output size | Current; changes the mapper after all agent trials (Findings 7 to 20 used the earlier mapper, commit `0a12d5c`) |
+| 22 | Mapper and answer-key fix for same-named Java classes; memory and output size | Current; changes the mapper after all agent trials (Findings 7 to 20 used the earlier mapper, tag `article-2026-11`) |
 
 ## Runs and cost
 
@@ -772,7 +772,7 @@ Reading:
 
 ## Finding 22: keeping same-named classes apart (mapper and answer key; no model)
 
-Everything above was measured with the mapper at commit `0a12d5c`. Check out that commit to reproduce Findings 1 to 21; the mapper changed afterwards.
+Everything above was measured with the mapper at tag `article-2026-11`. Check out that tag to reproduce Findings 1 to 21; the mapper changed afterwards.
 
 **Defect in the mapper.** Java classes were keyed by simple name, so a later class silently replaced an earlier one. 21 percent of dagger's Java files and 99 percent of guava's share a file name with another file.
 
