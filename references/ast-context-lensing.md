@@ -3,7 +3,7 @@
 
 
 
-Scripts and rules live in `skill-code-map`; this skill defines the lensing protocol only.
+Scripts and rules live in `scripts/` and `rules/`; this page defines the lensing protocol only.
 
 
 ## Prerequisites
@@ -43,7 +43,7 @@ python3 scripts/code_mapper.py .
 Given a task, run `auto_context.py` to rank the files that matter. It matches symbols named in the task
 to the semantic graph, then adds dependents (break if the seed changes) and dependencies (the seed relies on):
 ```bash
-python3 scripts/auto_context.py "add a field to DataDTO" --src projects/cloud-boot-app/src
+python3 scripts/auto_context.py "add a field to DataDTO" --src path/to/src
 python3 scripts/auto_context.py "fix DataService.createData" --graph relationship_graph.json --top 5 --json
 ```
 - **Deterministic**: No LLM call. Name classes, `Class.method`, or `@Annotation` in the task; prose words alone do not anchor.
@@ -52,7 +52,7 @@ python3 scripts/auto_context.py "fix DataService.createData" --graph relationshi
 
 ## Adding New AST Rules
 To add new structural extractors:
-1. Review [RULE_AUTHORING_GUIDE.md](file://../skill-code-map/resources/RULE_AUTHORING_GUIDE.md).
+1. Review [RULE_AUTHORING_GUIDE.md](../resources/RULE_AUTHORING_GUIDE.md).
 2. Add YAML rules into `resources/rules/local/<domain>/`.
 3. Add domain key mappings into `scripts/local_extract.py`.
 4. Test with: `ast-grep scan --json -c resources/sgconfig.yml <target_dir>`.

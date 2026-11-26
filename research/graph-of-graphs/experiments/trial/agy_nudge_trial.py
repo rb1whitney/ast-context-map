@@ -14,7 +14,7 @@ Results describe "agy with these global rules", not a clean agy. Output is in to
 caps are a per-run wall-clock timeout and a trial-wide token total. The clone is checked for changes after every run because
 agy's print mode runs in `always-proceed` permission mode.
 
-Commands (run from the folder that holds the clones and `_graphs/`, `projects/llm-test` in the lab):
+Commands (run from the folder that holds the clones and `_graphs/`):
   python3 experiments/trial/agy_nudge_trial.py run --dry-run
   python3 experiments/trial/agy_nudge_trial.py run --pilot          one run (G2) to confirm the gate fires
   python3 experiments/trial/agy_nudge_trial.py run --reps 3
